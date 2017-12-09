@@ -26,28 +26,29 @@
  */
 package org.apache.hc.client5.http.cache;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
 /**
- * Serializer / deserializer for {@link HttpCacheStorageEntry} entries.
- *
- * @since 5.0
+ * Used by some {@link HttpCacheStorage} implementations to serialize
+ * {@link HttpCacheEntry} instances to a byte representation before
+ * storage.
  */
-public interface HttpCacheEntrySerializer<T> {
+public interface HttpCacheEntrySerializer {
 
     /**
-     * Serializes the given entry.
-     *
-     * @param entry cache entry
-     * @return serialized representation of the cache entry
-     * @throws ResourceIOException
+     * Serializes the given entry to a byte representation on the
+     * given {@link OutputStream}.
+     * @throws IOException
      */
-    T serialize(HttpCacheStorageEntry entry) throws ResourceIOException;
+    void writeTo(HttpCacheEntry entry, OutputStream os) throws IOException;
 
     /**
-     * Deserializes a cache entry from its serialized representation.
-     * @param serializedObject serialized representation of the cache entry
-     * @return cache entry
-     * @throws ResourceIOException
+     * Deserializes a byte representation of a cache entry by reading
+     * from the given {@link InputStream}.
+     * @throws IOException
      */
-    HttpCacheStorageEntry deserialize(T serializedObject) throws ResourceIOException;
+    HttpCacheEntry readFrom(InputStream is) throws IOException;
 
 }

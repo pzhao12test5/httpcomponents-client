@@ -29,6 +29,7 @@ package org.apache.hc.client5.http.impl.cache;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -46,7 +47,6 @@ import org.apache.hc.core5.http.HeaderElement;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.message.MessageSupport;
-import org.apache.hc.core5.net.URIAuthority;
 import org.apache.hc.core5.net.URIBuilder;
 
 /**
@@ -86,45 +86,25 @@ class CacheKeyGenerator {
      * @return String the extracted URI
      */
     public String generateKey(final HttpHost host, final HttpRequest req) {
-        final StringBuilder buf = new StringBuilder();
-        final URIAuthority authority = req.getAuthority();
-        if (authority != null) {
-            final String scheme = req.getScheme();
-            buf.append(scheme != null ? scheme : "http").append("://");
-            buf.append(authority.getHostName());
-            if (authority.getPort() >= 0) {
-                buf.append(":").append(authority.getPort());
-            }
-        }
-        final String path = req.getPath();
-        if (path == null) {
-            buf.append("/");
-        } else {
-            if (buf.length() > 0 && !path.startsWith("/")) {
-                buf.append("/");
-            }
-            buf.append(path);
-        }
-        final String s = buf.toString();
         try {
-            URI uri = new URI(s);
+            URI uri = req.getUri();
             if (!uri.isAbsolute()) {
                 uri = URIUtils.rewriteURI(uri, host);
             }
             return normalize(uri).toASCIIString();
         } catch (final URISyntaxException ex) {
-            return s;
+            return req.getRequestUri();
         }
     }
 
-    public String generateKey(final URI uri) {
-        if (uri == null) {
+    public String generateKey(final URL url) {
+        if (url == null) {
             return null;
         }
         try {
-            return normalize(uri).toASCIIString();
+            return normalize(url.toURI()).toASCIIString();
         } catch (final URISyntaxException ex) {
-            return uri.toString();
+            return url.toString();
         }
     }
 

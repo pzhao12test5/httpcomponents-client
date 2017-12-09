@@ -32,7 +32,7 @@ import java.io.InterruptedIOException;
 import java.net.InetAddress;
 import java.util.Arrays;
 
-import org.apache.hc.core5.net.NamedEndpoint;
+import org.apache.hc.core5.http.HttpHost;
 
 /**
  * A timeout while connecting to an HTTP server or waiting for an
@@ -45,14 +45,14 @@ public class ConnectTimeoutException extends InterruptedIOException {
 
     private static final long serialVersionUID = -4816682903149535989L;
 
-    private final NamedEndpoint namedEndpoint;
+    private final HttpHost host;
 
     /**
      * Creates a ConnectTimeoutException with a {@code null} detail message.
      */
     public ConnectTimeoutException() {
         super();
-        this.namedEndpoint = null;
+        this.host = null;
     }
 
     /**
@@ -60,7 +60,7 @@ public class ConnectTimeoutException extends InterruptedIOException {
      */
     public ConnectTimeoutException(final String message) {
         super(message);
-        this.namedEndpoint = null;
+        this.host = null;
     }
 
     /**
@@ -70,23 +70,23 @@ public class ConnectTimeoutException extends InterruptedIOException {
      */
     public ConnectTimeoutException(
             final IOException cause,
-            final NamedEndpoint namedEndpoint,
+            final HttpHost host,
             final InetAddress... remoteAddresses) {
         super("Connect to " +
-                (namedEndpoint != null ? namedEndpoint : "remote endpoint") +
+                (host != null ? host.toHostString() : "remote host") +
                 (remoteAddresses != null && remoteAddresses.length > 0 ?
                         " " + Arrays.asList(remoteAddresses) : "") +
                 ((cause != null && cause.getMessage() != null) ?
                         " failed: " + cause.getMessage() : " timed out"));
-        this.namedEndpoint = namedEndpoint;
+        this.host = host;
         initCause(cause);
     }
 
     /**
-     * @since 5.0
+     * @since 4.3
      */
-    public NamedEndpoint getHost() {
-        return this.namedEndpoint;
+    public HttpHost getHost() {
+        return host;
     }
 
 }

@@ -27,90 +27,51 @@
 
 package org.apache.hc.client5.http.async.methods;
 
-import java.util.Iterator;
-
 import org.apache.hc.core5.http.ContentType;
-import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpResponse;
 import org.apache.hc.core5.http.message.BasicHttpResponse;
-import org.apache.hc.core5.util.Args;
+import org.apache.hc.core5.http.message.HttpResponseWrapper;
 
-public final class SimpleHttpResponse extends BasicHttpResponse {
+public final class SimpleHttpResponse extends HttpResponseWrapper {
 
-    private SimpleBody body;
+    private final String body;
+    private final ContentType contentType;
+
+    public SimpleHttpResponse(
+            final HttpResponse head,
+            final String body,
+            final ContentType contentType) {
+        super(head);
+        this.body = body;
+        this.contentType = contentType;
+    }
+
+    public SimpleHttpResponse(
+            final int code,
+            final String reasonPhrase,
+            final String body,
+            final ContentType contentType) {
+        super(new BasicHttpResponse(code, reasonPhrase));
+        this.body = body;
+        this.contentType = contentType;
+    }
+
+    public SimpleHttpResponse(final int code, final String body, final ContentType contentType) {
+        super(new BasicHttpResponse(code));
+        this.body = body;
+        this.contentType = contentType;
+    }
 
     public SimpleHttpResponse(final int code) {
-        super(code);
+        this(code, null, null);
     }
 
-    public SimpleHttpResponse(final int code, final String reasonPhrase) {
-        super(code, reasonPhrase);
-    }
-
-    public static SimpleHttpResponse copy(final HttpResponse original) {
-        Args.notNull(original, "HTTP response");
-        final SimpleHttpResponse copy = new SimpleHttpResponse(original.getCode());
-        copy.setVersion(original.getVersion());
-        for (final Iterator<Header> it = original.headerIterator(); it.hasNext(); ) {
-            copy.addHeader(it.next());
-        }
-        return copy;
-    }
-
-    public static SimpleHttpResponse create(final int code) {
-        return new SimpleHttpResponse(code);
-    }
-
-    public static SimpleHttpResponse create(final int code, final String content, final ContentType contentType) {
-        final SimpleHttpResponse response = new SimpleHttpResponse(code);
-        if (content != null) {
-            response.setBodyText(content, contentType);
-        }
-        return response;
-    }
-
-    public static SimpleHttpResponse create(final int code, final String content) {
-        return create(code, content, ContentType.TEXT_PLAIN);
-    }
-
-    public static SimpleHttpResponse create(final int code, final byte[] content, final ContentType contentType) {
-        final SimpleHttpResponse response = new SimpleHttpResponse(code);
-        if (content != null) {
-            response.setBodyBytes(content, contentType);
-        }
-        return response;
-    }
-
-    public static SimpleHttpResponse create(final int code, final byte[] content) {
-        return create(code, content, ContentType.TEXT_PLAIN);
-    }
-
-    public void setBody(final SimpleBody body) {
-        this.body = body;
-    }
-
-    public void setBodyBytes(final byte[] bodyBytes, final ContentType contentType) {
-        this.body = SimpleBody.create(bodyBytes, contentType);
-    }
-
-    public void setBodyText(final String bodyText, final ContentType contentType) {
-        this.body = SimpleBody.create(bodyText, contentType);
-    }
-
-    public SimpleBody getBody() {
+    public String getBody() {
         return body;
     }
 
     public ContentType getContentType() {
-        return body != null ? body.getContentType() : null;
-    }
-
-    public String getBodyText() {
-        return body != null ? body.getBodyText() : null;
-    }
-
-    public byte[] getBodyBytes() {
-        return body != null ? body.getBodyBytes() : null;
+        return contentType;
     }
 
 }

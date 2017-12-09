@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <!--
    ====================================================================
    Licensed to the Apache Software Foundation (ASF) under one
@@ -23,18 +22,19 @@
    individuals on behalf of the Apache Software Foundation.  For more
    information on the Apache Software Foundation, please see
    <http://www.apache.org />.
- --><project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+ -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <parent>
+    <artifactId>project</artifactId>
     <groupId>org.apache.httpcomponents</groupId>
-    <artifactId>httpcomponents-parent</artifactId>
-    <version>10</version>
-    <relativePath>../httpcomponents-parent/pom.xml</relativePath>
+    <version>8</version>
+    <relativePath>../project/pom.xml</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.apache.httpcomponents.client5</groupId>
   <artifactId>httpclient5-parent</artifactId>
   <name>Apache HttpComponents Client Parent</name>
-  <version>5.0-alpha4-SNAPSHOT</version>
+  <version>5.0-alpha3-SNAPSHOT</version>
   <description>Apache HttpComponents Client is a library of components for building client side HTTP services</description>
   <url>http://hc.apache.org/httpcomponents-client</url>
   <inceptionYear>1999</inceptionYear>
@@ -62,24 +62,29 @@
     <connection>scm:git:https://git-wip-us.apache.org/repos/asf/httpcomponents-client.git</connection>
     <developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/httpcomponents-client.git</developerConnection>
     <url>https://github.com/apache/httpcomponents-client/tree/${project.scm.tag}</url>
-    <tag>5.0-alpha4-SNAPSHOT</tag>
+    <tag>master</tag>
   </scm>
 
   <properties>
     <maven.compiler.source>1.7</maven.compiler.source>
     <maven.compiler.target>1.7</maven.compiler.target>
-    <httpcore.version>5.0-beta1</httpcore.version>
-    <log4j.version>2.9.1</log4j.version>
+    <httpcore.version>5.0-alpha3</httpcore.version>
+    <log4j.version>2.8</log4j.version>
     <commons-codec.version>1.10</commons-codec.version>
-    <ehcache.version>3.4.0</ehcache.version>
-    <memcached.version>2.12.3</memcached.version>
+    <ehcache.version>2.6.11</ehcache.version>
+    <memcached.version>2.12.0</memcached.version>
     <slf4j.version>1.7.13</slf4j.version>
     <junit.version>4.12</junit.version>
     <easymock.version>2.5.2</easymock.version>
     <mockito.version>2.7.22</mockito.version>
     <jna.version>4.2.1</jna.version>
     <hc.stylecheck.version>1</hc.stylecheck.version>
-  </properties>
+    <hc.rat.version>0.12</hc.rat.version>
+  <gib.commitRange>${env.TRAVIS_COMMIT_RANGE}</gib.commitRange>
+        <gib.enabled>true</gib.enabled>
+        <gib.useEkstazi>true</gib.useEkstazi>
+        <gib.excludePathRegex>(.*\.txt$)|(.*\.md$)|(.*\.html$)|(.*\.rst$)|(.*\.scss$)|(.*\.css$)|(.*\.png$)|(.*\.py$)|(.*README$)|(.*\.jpg$)|(.*\.jpeg$)|(.*NOTICE$)|(.*\.gitignore$)</gib.excludePathRegex>
+    </properties>
 
   <dependencyManagement>
     <dependencies>
@@ -121,8 +126,8 @@
         <version>${commons-codec.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.ehcache.modules</groupId>
-        <artifactId>ehcache-api</artifactId>
+        <groupId>net.sf.ehcache</groupId>
+        <artifactId>ehcache-core</artifactId>
         <version>${ehcache.version}</version>
       </dependency>
       <dependency>
@@ -319,6 +324,14 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>2.9.1</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>hc-stylecheck</artifactId>
+            <version>${hc.stylecheck.version}</version>
+          </dependency>
+        </dependencies>
         <configuration>
           <encoding>UTF-8</encoding>
         </configuration>
@@ -373,6 +386,7 @@
       <plugin>
         <groupId>org.apache.rat</groupId>
         <artifactId>apache-rat-plugin</artifactId>
+        <version>${hc.rat.version}</version>
         <executions>
           <execution>
             <phase>verify</phase>
@@ -390,17 +404,33 @@
             <exclude>maven-eclipse.xml</exclude>
             <exclude>**/serial</exclude>
             <exclude>**/index.txt</exclude>
-          </excludes>
+          <exclude>**/.ekstazi/**</exclude>
+                        <exclude>**/.travis.yml</exclude>
+                        <exclude>**/NOW</exclude>
+                    </excludes>
         </configuration>
       </plugin>
-    </plugins>
-  </build>
+    <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.19</version>
+            </plugin>
+        </plugins>
+  <extensions>
+            <extension>
+                <groupId>edu.illinois</groupId>
+                <artifactId>incremental-builder-with-ekstazi</artifactId>
+                <version>3.5.0</version>
+            </extension>
+        </extensions>
+    </build>
 
   <reporting>
     <plugins>
 
       <plugin>
         <artifactId>maven-project-info-reports-plugin</artifactId>
+        <version>${hc.project-info.version}</version>
         <inherited>false</inherited>
         <reportSets>
           <reportSet>
@@ -419,3 +449,4 @@
   </reporting>
 
 </project>
+

@@ -27,12 +27,9 @@
 
 package org.apache.hc.client5.http.entity.mime;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.hc.core5.http.ContentType;
-import org.apache.hc.core5.http.NameValuePair;
-import org.apache.hc.core5.http.message.BasicNameValuePair;
 import org.apache.hc.core5.util.Args;
 import org.apache.hc.core5.util.Asserts;
 
@@ -75,15 +72,6 @@ public class FormBodyPartBuilder {
         return this;
     }
 
-    /**
-     * @since 4.6
-     */
-    public FormBodyPartBuilder addField(final String name, final String value, final List<NameValuePair> parameters) {
-        Args.notNull(name, "Field name");
-        this.header.addField(new MinimalField(name, value, parameters));
-        return this;
-    }
-
     public FormBodyPartBuilder addField(final String name, final String value) {
         Args.notNull(name, "Field name");
         this.header.addField(new MinimalField(name, value));
@@ -111,12 +99,16 @@ public class FormBodyPartBuilder {
             headerCopy.addField(field);
         }
         if (headerCopy.getField(MIME.CONTENT_DISPOSITION) == null) {
-            final List<NameValuePair> fieldParameters = new ArrayList<NameValuePair>();
-            fieldParameters.add(new BasicNameValuePair(MIME.FIELD_PARAM_NAME, this.name));
+            final StringBuilder buffer = new StringBuilder();
+            buffer.append("form-data; name=\"");
+            buffer.append(this.name);
+            buffer.append("\"");
             if (this.body.getFilename() != null) {
-                fieldParameters.add(new BasicNameValuePair(MIME.FIELD_PARAM_FILENAME, this.body.getFilename()));
+                buffer.append("; filename=\"");
+                buffer.append(this.body.getFilename());
+                buffer.append("\"");
             }
-            headerCopy.addField(new MinimalField(MIME.CONTENT_DISPOSITION, "form-data", fieldParameters));
+            headerCopy.addField(new MinimalField(MIME.CONTENT_DISPOSITION, buffer.toString()));
         }
         if (headerCopy.getField(MIME.CONTENT_TYPE) == null) {
             final ContentType contentType;
@@ -136,6 +128,10 @@ public class FormBodyPartBuilder {
                 }
                 headerCopy.addField(new MinimalField(MIME.CONTENT_TYPE, buffer.toString()));
             }
+        }
+        if (headerCopy.getField(MIME.CONTENT_TRANSFER_ENC) == null) {
+            // TE cannot be null
+            headerCopy.addField(new MinimalField(MIME.CONTENT_TRANSFER_ENC, body.getTransferEncoding()));
         }
         return new FormBodyPart(this.name, this.body, headerCopy);
     }

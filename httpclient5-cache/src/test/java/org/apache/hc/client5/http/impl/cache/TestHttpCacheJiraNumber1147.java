@@ -36,25 +36,22 @@ import java.io.File;
 import java.util.Date;
 
 import org.apache.hc.client5.http.HttpRoute;
-import org.apache.hc.client5.http.cache.CacheResponseStatus;
-import org.apache.hc.client5.http.cache.HttpCacheContext;
 import org.apache.hc.client5.http.cache.HttpCacheStorage;
 import org.apache.hc.client5.http.cache.ResourceFactory;
-import org.apache.hc.client5.http.classic.ExecChain;
-import org.apache.hc.client5.http.classic.ExecChainHandler;
-import org.apache.hc.client5.http.classic.ExecRuntime;
-import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.sync.ExecRuntime;
+import org.apache.hc.client5.http.protocol.HttpClientContext;
+import org.apache.hc.client5.http.sync.ExecChain;
+import org.apache.hc.client5.http.sync.ExecChainHandler;
+import org.apache.hc.client5.http.sync.methods.HttpGet;
 import org.apache.hc.client5.http.utils.DateUtils;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.HttpHost;
-import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 public class TestHttpCacheJiraNumber1147 {
 
@@ -100,7 +97,7 @@ public class TestHttpCacheJiraNumber1147 {
         final HttpHost target = new HttpHost("somehost", 80);
         final HttpRoute route = new HttpRoute(target);
         final ClassicHttpRequest get = new HttpGet("http://somehost/");
-        final HttpCacheContext context = HttpCacheContext.create();
+        final HttpClientContext context = HttpClientContext.create();
 
         final Date now = new Date();
         final Date tenSecondsAgo = new Date(now.getTime() - 10 * 1000L);
@@ -116,13 +113,13 @@ public class TestHttpCacheJiraNumber1147 {
                 isA(ClassicHttpRequest.class),
                 isA(ExecChain.Scope.class))).thenReturn(response);
 
-        final BasicHttpCache cache = new BasicHttpCache(resourceFactory, httpCacheStorage);
+        final BasicHttpCache cache = new BasicHttpCache(resourceFactory, httpCacheStorage, cacheConfig);
         final ExecChainHandler t = createCachingExecChain(cache, cacheConfig);
 
-        final ExecChain.Scope scope = new ExecChain.Scope("teset", route, get, mockEndpoint, context);
+        final ExecChain.Scope scope = new ExecChain.Scope(route, get, mockEndpoint, context);
         final ClassicHttpResponse response1 = t.execute(get, scope, mockExecChain);
         Assert.assertEquals(200, response1.getCode());
-        EntityUtils.consume(response1.getEntity());
+        IOUtils.consume(response1.getEntity());
 
         verify(mockExecChain).proceed(isA(ClassicHttpRequest.class), isA(ExecChain.Scope.class));
 
@@ -133,12 +130,11 @@ public class TestHttpCacheJiraNumber1147 {
 
         final ClassicHttpResponse response2 = t.execute(get, scope, mockExecChain);
         Assert.assertEquals(200, response2.getCode());
-        EntityUtils.consume(response2.getEntity());
+        IOUtils.consume(response2.getEntity());
 
-        verify(mockExecChain, Mockito.times(1)).proceed(
+        verify(mockExecChain).proceed(
                 isA(ClassicHttpRequest.class),
                 isA(ExecChain.Scope.class));
-        Assert.assertEquals(CacheResponseStatus.FAILURE, context.getCacheResponseStatus());
     }
 
     protected ExecChainHandler createCachingExecChain(final BasicHttpCache cache, final CacheConfig config) {

@@ -26,15 +26,20 @@
  */
 package org.apache.hc.client5.http.impl.cache.ehcache;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+
+import org.apache.hc.client5.http.cache.HttpCacheEntry;
 import org.apache.hc.client5.http.cache.HttpCacheEntrySerializer;
-import org.apache.hc.client5.http.cache.HttpCacheStorageEntry;
-import org.apache.hc.client5.http.cache.ResourceIOException;
-import org.apache.hc.client5.http.impl.cache.AbstractSerializingCacheStorage;
-import org.apache.hc.client5.http.impl.cache.ByteArrayCacheEntrySerializer;
+import org.apache.hc.client5.http.cache.HttpCacheStorage;
+import org.apache.hc.client5.http.cache.HttpCacheUpdateCallback;
+import org.apache.hc.client5.http.cache.HttpCacheUpdateException;
 import org.apache.hc.client5.http.impl.cache.CacheConfig;
-import org.apache.hc.client5.http.impl.cache.NoopCacheEntrySerializer;
-import org.apache.hc.core5.util.Args;
-import org.ehcache.Cache;
+import org.apache.hc.client5.http.impl.cache.DefaultHttpCacheEntrySerializer;
+
+import net.sf.ehcache.Ehcache;
+import net.sf.ehcache.Element;
 
 /**
  * <p>This class is a storage backend for cache entries that uses the
@@ -53,29 +58,32 @@ import org.ehcache.Cache;
  * itself.</p>
  * @since 4.1
  */
-public class EhcacheHttpCacheStorage<T> extends AbstractSerializingCacheStorage<T, T> {
+public class EhcacheHttpCacheStorage implements HttpCacheStorage {
+
+    private final Ehcache cache;
+    private final HttpCacheEntrySerializer serializer;
+    private final int maxUpdateRetries;
 
     /**
-     * Creates cache that stores {@link HttpCacheStorageEntry}s without direct serialization.
-     *
-     * @since 5.0
+     * Constructs a storage backend using the provided Ehcache
+     * with default configuration options.
+     * @param cache where to store cached origin responses
      */
-    public static EhcacheHttpCacheStorage<HttpCacheStorageEntry> createObjectCache(
-            final Cache<String, HttpCacheStorageEntry> cache, final CacheConfig config) {
-        return new EhcacheHttpCacheStorage<>(cache, config, NoopCacheEntrySerializer.INSTANCE);
+    public EhcacheHttpCacheStorage(final Ehcache cache) {
+        this(cache, CacheConfig.DEFAULT, new DefaultHttpCacheEntrySerializer());
     }
 
     /**
-     * Creates cache that stores serialized {@link HttpCacheStorageEntry}s.
-     *
-     * @since 5.0
+     * Constructs a storage backend using the provided Ehcache
+     * with the given configuration options.
+     * @param cache where to store cached origin responses
+     * @param config cache storage configuration options - note that
+     *   the setting for max object size <b>will be ignored</b> and
+     *   should be configured in the Ehcache instead.
      */
-    public static EhcacheHttpCacheStorage<byte[]> createSerializedCache(
-            final Cache<String, byte[]> cache, final CacheConfig config) {
-        return new EhcacheHttpCacheStorage<>(cache, config, ByteArrayCacheEntrySerializer.INSTANCE);
+    public EhcacheHttpCacheStorage(final Ehcache cache, final CacheConfig config){
+        this(cache, config, new DefaultHttpCacheEntrySerializer());
     }
-
-    private final Cache<String, T> cache;
 
     /**
      * Constructs a storage backend using the provided Ehcache
@@ -87,48 +95,67 @@ public class EhcacheHttpCacheStorage<T> extends AbstractSerializingCacheStorage<
      *   should be configured in the Ehcache instead.
      * @param serializer alternative serialization mechanism
      */
-    public EhcacheHttpCacheStorage(
-            final Cache<String, T> cache,
-            final CacheConfig config,
-            final HttpCacheEntrySerializer<T> serializer) {
-        super((config != null ? config : CacheConfig.DEFAULT).getMaxUpdateRetries(), serializer);
-        this.cache = Args.notNull(cache, "Ehcache");
+    public EhcacheHttpCacheStorage(final Ehcache cache, final CacheConfig config, final HttpCacheEntrySerializer serializer){
+        this.cache = cache;
+        this.maxUpdateRetries = config.getMaxUpdateRetries();
+        this.serializer = serializer;
     }
 
     @Override
-    protected String digestToStorageKey(final String key) {
-        return key;
+    public synchronized void putEntry(final String key, final HttpCacheEntry entry) throws IOException {
+        final ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        serializer.writeTo(entry, bos);
+        cache.put(new Element(key, bos.toByteArray()));
     }
 
     @Override
-    protected void store(final String storageKey, final T storageObject) throws ResourceIOException {
-        cache.put(storageKey, storageObject);
+    public synchronized HttpCacheEntry getEntry(final String key) throws IOException {
+        final Element e = cache.get(key);
+        if(e == null){
+            return null;
+        }
+
+        final byte[] data = (byte[])e.getObjectValue();
+        return serializer.readFrom(new ByteArrayInputStream(data));
     }
 
     @Override
-    protected T restore(final String storageKey) throws ResourceIOException {
-        return cache.get(storageKey);
+    public synchronized void removeEntry(final String key) {
+        cache.remove(key);
     }
 
     @Override
-    protected T getForUpdateCAS(final String storageKey) throws ResourceIOException {
-        return cache.get(storageKey);
-    }
+    public synchronized void updateEntry(final String key, final HttpCacheUpdateCallback callback)
+            throws IOException, HttpCacheUpdateException {
+        int numRetries = 0;
+        do{
+            final Element oldElement = cache.get(key);
 
-    @Override
-    protected T getStorageObject(final T element) throws ResourceIOException {
-        return element;
-    }
+            HttpCacheEntry existingEntry = null;
+            if(oldElement != null){
+                final byte[] data = (byte[])oldElement.getObjectValue();
+                existingEntry = serializer.readFrom(new ByteArrayInputStream(data));
+            }
 
-    @Override
-    protected boolean updateCAS(
-            final String storageKey, final T oldStorageObject, final T storageObject) throws ResourceIOException {
-        return cache.replace(storageKey, oldStorageObject, storageObject);
-    }
+            final HttpCacheEntry updatedEntry = callback.update(existingEntry);
 
-    @Override
-    protected void delete(final String storageKey) throws ResourceIOException {
-        cache.remove(storageKey);
+            if (existingEntry == null) {
+                putEntry(key, updatedEntry);
+                return;
+            } else {
+                // Attempt to do a CAS replace, if we fail then retry
+                // While this operation should work fine within this instance, multiple instances
+                //  could trample each others' data
+                final ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                serializer.writeTo(updatedEntry, bos);
+                final Element newElement = new Element(key, bos.toByteArray());
+                if (cache.replace(oldElement, newElement)) {
+                    return;
+                }else{
+                    numRetries++;
+                }
+            }
+        }while(numRetries <= maxUpdateRetries);
+        throw new HttpCacheUpdateException("Failed to processChallenge");
     }
-
 }

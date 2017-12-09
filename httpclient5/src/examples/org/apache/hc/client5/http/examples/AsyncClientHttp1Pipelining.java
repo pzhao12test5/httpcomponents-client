@@ -40,10 +40,9 @@ import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.config.H1Config;
 import org.apache.hc.core5.http.nio.AsyncClientEndpoint;
-import org.apache.hc.core5.http2.HttpVersionPolicy;
 import org.apache.hc.core5.io.ShutdownType;
 import org.apache.hc.core5.reactor.IOReactorConfig;
-import org.apache.hc.core5.util.Timeout;
+import org.apache.hc.core5.util.TimeValue;
 
 /**
  * This example demonstrates pipelined execution of multiple HTTP/1.1 message exchanges.
@@ -53,11 +52,10 @@ public class AsyncClientHttp1Pipelining {
     public static void main(final String[] args) throws Exception {
 
         final IOReactorConfig ioReactorConfig = IOReactorConfig.custom()
-                .setSoTimeout(Timeout.ofSeconds(5))
+                .setSoTimeout(TimeValue.ofSeconds(5))
                 .build();
 
-        final MinimalHttpAsyncClient client = HttpAsyncClients.createMinimal(
-                HttpVersionPolicy.FORCE_HTTP_1, null, H1Config.DEFAULT, ioReactorConfig);
+        final MinimalHttpAsyncClient client = HttpAsyncClients.createMinimal(H1Config.DEFAULT, ioReactorConfig);
 
         client.start();
 
@@ -71,8 +69,8 @@ public class AsyncClientHttp1Pipelining {
             for (final String requestUri: requestUris) {
                 final SimpleHttpRequest request = SimpleHttpRequest.get(target, requestUri);
                 endpoint.execute(
-                        SimpleRequestProducer.create(request),
-                        SimpleResponseConsumer.create(),
+                        new SimpleRequestProducer(request),
+                        new SimpleResponseConsumer(),
                         new FutureCallback<SimpleHttpResponse>() {
 
                             @Override

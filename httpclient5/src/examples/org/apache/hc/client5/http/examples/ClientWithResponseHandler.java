@@ -29,19 +29,19 @@ package org.apache.hc.client5.http.examples;
 
 import java.io.IOException;
 
-import org.apache.hc.client5.http.ClientProtocolException;
-import org.apache.hc.client5.http.classic.methods.HttpGet;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.sync.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.sync.HttpClients;
+import org.apache.hc.client5.http.protocol.ClientProtocolException;
+import org.apache.hc.client5.http.sync.methods.HttpGet;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.http.ParseException;
-import org.apache.hc.core5.http.io.HttpClientResponseHandler;
+import org.apache.hc.core5.http.io.ResponseHandler;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 
 /**
- * This example demonstrates the use of the {@link HttpClientResponseHandler} to simplify
+ * This example demonstrates the use of the {@link ResponseHandler} to simplify
  * the process of processing the HTTP response and releasing associated resources.
  */
 public class ClientWithResponseHandler {
@@ -53,7 +53,7 @@ public class ClientWithResponseHandler {
             System.out.println("Executing request " + httpget.getMethod() + " " + httpget.getUri());
 
             // Create a custom response handler
-            final HttpClientResponseHandler<String> responseHandler = new HttpClientResponseHandler<String>() {
+            final ResponseHandler<String> responseHandler = new ResponseHandler<String>() {
 
                 @Override
                 public String handleResponse(

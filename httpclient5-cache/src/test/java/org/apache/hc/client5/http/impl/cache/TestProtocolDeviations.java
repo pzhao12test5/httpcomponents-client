@@ -30,13 +30,13 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.Random;
 
-import org.apache.hc.client5.http.ClientProtocolException;
 import org.apache.hc.client5.http.HttpRoute;
 import org.apache.hc.client5.http.cache.HttpCacheContext;
-import org.apache.hc.client5.http.classic.ExecChain;
-import org.apache.hc.client5.http.classic.ExecChainHandler;
-import org.apache.hc.client5.http.classic.ExecRuntime;
-import org.apache.hc.client5.http.impl.classic.ClassicRequestCopier;
+import org.apache.hc.client5.http.impl.ExecSupport;
+import org.apache.hc.client5.http.sync.ExecRuntime;
+import org.apache.hc.client5.http.protocol.ClientProtocolException;
+import org.apache.hc.client5.http.sync.ExecChain;
+import org.apache.hc.client5.http.sync.ExecChainHandler;
 import org.apache.hc.client5.http.utils.DateUtils;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
@@ -122,8 +122,7 @@ public class TestProtocolDeviations {
     }
 
     private ClassicHttpResponse execute(final ClassicHttpRequest request) throws IOException, HttpException {
-        return impl.execute(ClassicRequestCopier.INSTANCE.copy(request), new ExecChain.Scope(
-                "test", route, request, mockEndpoint, context), mockExecChain);
+        return impl.execute(ExecSupport.copy(request), new ExecChain.Scope(route, request, mockEndpoint, context), mockExecChain);
     }
 
     protected ExecChainHandler createCachingExecChain(final HttpCache cache, final CacheConfig config) {
@@ -252,6 +251,36 @@ public class TestProtocolDeviations {
             Assert.assertTrue(HttpStatus.SC_LENGTH_REQUIRED == status
                     || HttpStatus.SC_BAD_REQUEST == status);
         }
+    }
+
+    /*
+     * "If the OPTIONS request includes an entity-body (as indicated by the
+     * presence of Content-Length or Transfer-Encoding), then the media type
+     * MUST be indicated by a Content-Type field."
+     *
+     * http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.2
+     */
+    @Test
+    public void testOPTIONSRequestsWithBodiesAndNoContentTypeHaveOneSupplied() throws Exception {
+        final ClassicHttpRequest options = new BasicClassicHttpRequest("OPTIONS", "/");
+        options.setEntity(body);
+        options.setHeader("Content-Length", "1");
+
+        final Capture<ClassicHttpRequest> reqCap = new Capture<>();
+        EasyMock.expect(
+                mockExecChain.proceed(
+                        EasyMock.capture(reqCap),
+                        EasyMock.isA(ExecChain.Scope.class))).andReturn(originResponse);
+        replayMocks();
+
+        execute(options);
+
+        verifyMocks();
+
+        final ClassicHttpRequest reqWithBody = reqCap.getValue();
+        final HttpEntity reqBody = reqWithBody.getEntity();
+        Assert.assertNotNull(reqBody);
+        Assert.assertNotNull(reqBody.getContentType());
     }
 
     /*

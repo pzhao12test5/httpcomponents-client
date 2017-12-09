@@ -32,7 +32,6 @@ import java.net.URISyntaxException;
 import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.hc.client5.http.AuthenticationStrategy;
 import org.apache.hc.client5.http.HttpRoute;
 import org.apache.hc.client5.http.StandardMethods;
 import org.apache.hc.client5.http.async.AsyncExecCallback;
@@ -43,9 +42,10 @@ import org.apache.hc.client5.http.auth.AuthExchange;
 import org.apache.hc.client5.http.auth.ChallengeType;
 import org.apache.hc.client5.http.auth.CredentialsProvider;
 import org.apache.hc.client5.http.auth.CredentialsStore;
-import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.AuthSupport;
+import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.auth.HttpAuthenticator;
+import org.apache.hc.client5.http.protocol.AuthenticationStrategy;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
 import org.apache.hc.client5.http.utils.URIUtils;
 import org.apache.hc.core5.annotation.Contract;
@@ -125,7 +125,7 @@ class AsyncProtocolExec implements AsyncExecChainHandler {
         if (authority != null) {
             final CredentialsProvider credsProvider = clientContext.getCredentialsProvider();
             if (credsProvider instanceof CredentialsStore) {
-                AuthSupport.extractFromAuthority(request.getScheme(), authority, (CredentialsStore) credsProvider);
+                AuthSupport.extractFromAuthority(authority, (CredentialsStore) credsProvider);
             }
         }
 
@@ -207,24 +207,16 @@ class AsyncProtocolExec implements AsyncExecChainHandler {
                 }
 
                 if (challenged.get()) {
-                    if (entityProducer != null && !entityProducer.isRepeatable()) {
-                        log.debug("Cannot retry non-repeatable request");
-                        asyncExecCallback.completed();
-                    } else {
-                        // Reset request headers
-                        final HttpRequest original = scope.originalRequest;
-                        request.setHeaders();
-                        for (final Iterator<Header> it = original.headerIterator(); it.hasNext(); ) {
-                            request.addHeader(it.next());
-                        }
-                        try {
-                            if (entityProducer != null) {
-                                entityProducer.releaseResources();
-                            }
-                            internalExecute(challenged, request, entityProducer, scope, chain, asyncExecCallback);
-                        } catch (final HttpException | IOException ex) {
-                            asyncExecCallback.failed(ex);
-                        }
+                    // Reset request headers
+                    final HttpRequest original = scope.originalRequest;
+                    request.setHeaders();
+                    for (final Iterator<Header> it = original.headerIterator(); it.hasNext(); ) {
+                        request.addHeader(it.next());
+                    }
+                    try {
+                        internalExecute(challenged, request, entityProducer, scope, chain, asyncExecCallback);
+                    } catch (final HttpException | IOException ex) {
+                        asyncExecCallback.failed(ex);
                     }
                 } else {
                     asyncExecCallback.completed();

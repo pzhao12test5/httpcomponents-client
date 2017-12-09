@@ -39,23 +39,23 @@ import org.apache.hc.client5.http.DnsResolver;
 import org.apache.hc.client5.http.HttpRoute;
 import org.apache.hc.client5.http.SystemDefaultDnsResolver;
 import org.apache.hc.client5.http.auth.CredentialsProvider;
-import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.config.AuthSchemes;
 import org.apache.hc.client5.http.config.CookieSpecs;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.cookie.BasicCookieStore;
 import org.apache.hc.client5.http.cookie.CookieStore;
-import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.ManagedHttpClientConnectionFactory;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.client5.http.impl.sync.BasicCredentialsProvider;
+import org.apache.hc.client5.http.impl.sync.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.sync.CloseableHttpResponse;
+import org.apache.hc.client5.http.impl.sync.HttpClients;
 import org.apache.hc.client5.http.io.ManagedHttpClientConnection;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
 import org.apache.hc.client5.http.socket.ConnectionSocketFactory;
 import org.apache.hc.client5.http.socket.PlainConnectionSocketFactory;
 import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
+import org.apache.hc.client5.http.sync.methods.HttpGet;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.Header;
@@ -78,12 +78,9 @@ import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.http.message.BasicLineParser;
 import org.apache.hc.core5.http.message.LineParser;
-import org.apache.hc.core5.pool.PoolConcurrencyPolicy;
-import org.apache.hc.core5.pool.PoolReusePolicy;
 import org.apache.hc.core5.ssl.SSLContexts;
 import org.apache.hc.core5.util.CharArrayBuffer;
 import org.apache.hc.core5.util.TimeValue;
-import org.apache.hc.core5.util.Timeout;
 
 /**
  * This example demonstrates how to customize and configure the most common aspects
@@ -168,8 +165,7 @@ public class ClientConfiguration {
 
         // Create a connection manager with custom configuration.
         final PoolingHttpClientConnectionManager connManager = new PoolingHttpClientConnectionManager(
-                socketFactoryRegistry, PoolConcurrencyPolicy.STRICT, PoolReusePolicy.LIFO, TimeValue.ofMinutes(5),
-                null, dnsResolver, null);
+                socketFactoryRegistry, connFactory, dnsResolver);
 
         // Create socket configuration
         final SocketConfig socketConfig = SocketConfig.custom()
@@ -212,8 +208,9 @@ public class ClientConfiguration {
             // Request configuration can be overridden at the request level.
             // They will take precedence over the one set at the client level.
             final RequestConfig requestConfig = RequestConfig.copy(defaultRequestConfig)
-                    .setConnectionTimeout(Timeout.ofSeconds(5))
-                    .setConnectionRequestTimeout(Timeout.ofSeconds(5))
+                    .setSocketTimeout(TimeValue.ofSeconds(5))
+                    .setConnectTimeout(TimeValue.ofSeconds(5))
+                    .setConnectionRequestTimeout(TimeValue.ofSeconds(5))
                     .setProxy(new HttpHost("myotherproxy", 8080))
                     .build();
             httpget.setConfig(requestConfig);

@@ -28,13 +28,13 @@ package org.apache.hc.client5.http.impl.async;
 
 import java.io.IOException;
 
-import org.apache.hc.client5.http.HttpRequestRetryHandler;
 import org.apache.hc.client5.http.HttpRoute;
 import org.apache.hc.client5.http.async.AsyncExecCallback;
 import org.apache.hc.client5.http.async.AsyncExecChain;
 import org.apache.hc.client5.http.async.AsyncExecChainHandler;
-import org.apache.hc.client5.http.impl.RequestCopier;
+import org.apache.hc.client5.http.impl.ExecSupport;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
+import org.apache.hc.client5.http.sync.HttpRequestRetryHandler;
 import org.apache.hc.core5.http.EntityDetails;
 import org.apache.hc.core5.http.HttpException;
 import org.apache.hc.core5.http.HttpRequest;
@@ -64,7 +64,7 @@ class AsyncRetryExec implements AsyncExecChainHandler {
             final AsyncExecChain chain,
             final AsyncExecCallback asyncExecCallback) throws HttpException, IOException {
 
-        chain.proceed(RequestCopier.INSTANCE.copy(request), entityProducer, scope, new AsyncExecCallback() {
+        chain.proceed(ExecSupport.copy(request), entityProducer, scope, new AsyncExecCallback() {
 
             @Override
             public AsyncDataConsumer handleResponse(
@@ -83,9 +83,7 @@ class AsyncRetryExec implements AsyncExecChainHandler {
                 if (cause instanceof IOException) {
                     final HttpRoute route = scope.route;
                     final HttpClientContext clientContext = scope.clientContext;
-                    if (entityProducer != null && !entityProducer.isRepeatable()) {
-                        log.debug("Cannot retry non-repeatable request");
-                    } else if (retryHandler.retryRequest(request, (IOException) cause, execCount, clientContext)) {
+                    if (retryHandler.retryRequest(request, (IOException) cause, execCount, clientContext)) {
                         if (log.isInfoEnabled()) {
                             log.info("I/O exception ("+ cause.getClass().getName() +
                                     ") caught when processing request to "
@@ -101,12 +99,9 @@ class AsyncRetryExec implements AsyncExecChainHandler {
                         }
                         try {
                             scope.execRuntime.discardConnection();
-                            if (entityProducer != null) {
-                                entityProducer.releaseResources();
-                            }
                             internalExecute(execCount + 1, request, entityProducer, scope, chain, asyncExecCallback);
                             return;
-                        } catch (final IOException | HttpException ex) {
+                        } catch (IOException | HttpException ex) {
                             log.error(ex.getMessage(), ex);
                         }
                     }

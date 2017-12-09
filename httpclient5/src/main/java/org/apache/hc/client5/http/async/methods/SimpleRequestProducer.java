@@ -26,32 +26,19 @@
  */
 package org.apache.hc.client5.http.async.methods;
 
-import org.apache.hc.core5.http.nio.AsyncEntityProducer;
-import org.apache.hc.core5.http.nio.BasicRequestProducer;
-import org.apache.hc.core5.http.nio.entity.BasicAsyncEntityProducer;
+import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.core5.http.nio.entity.StringAsyncEntityProducer;
 import org.apache.hc.core5.util.Args;
 
-public final class SimpleRequestProducer extends BasicRequestProducer {
+public final class SimpleRequestProducer extends DefaultAsyncRequestProducer {
 
-    SimpleRequestProducer(final SimpleHttpRequest request, final AsyncEntityProducer entityProducer) {
-        super(request, entityProducer);
+    public SimpleRequestProducer(final SimpleHttpRequest request, final RequestConfig requestConfig) {
+        super(Args.notNull(request, "Request"), request.getBody() != null ?
+                new StringAsyncEntityProducer(request.getBody(), request.getContentType()) : null, requestConfig);
     }
 
-    public static SimpleRequestProducer create(final SimpleHttpRequest request) {
-        Args.notNull(request, "Request");
-        final SimpleBody body = request.getBody();
-        final AsyncEntityProducer entityProducer;
-        if (body != null) {
-            if (body.isText()) {
-                entityProducer = new StringAsyncEntityProducer(body.getBodyText(), body.getContentType());
-            } else {
-                entityProducer = new BasicAsyncEntityProducer(body.getBodyBytes(), body.getContentType());
-            }
-        } else {
-            entityProducer = null;
-        }
-        return new SimpleRequestProducer(request, entityProducer);
+    public SimpleRequestProducer(final SimpleHttpRequest request) {
+        this(request, null);
     }
 
 }

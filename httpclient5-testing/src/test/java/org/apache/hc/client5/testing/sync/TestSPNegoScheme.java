@@ -29,17 +29,15 @@ package org.apache.hc.client5.testing.sync;
 import java.io.IOException;
 import java.security.Principal;
 
-import org.apache.hc.client5.http.SystemDefaultDnsResolver;
 import org.apache.hc.client5.http.auth.AuthScheme;
 import org.apache.hc.client5.http.auth.AuthSchemeProvider;
 import org.apache.hc.client5.http.auth.AuthScope;
 import org.apache.hc.client5.http.auth.Credentials;
-import org.apache.hc.client5.http.auth.KerberosConfig;
-import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.config.AuthSchemes;
-import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
 import org.apache.hc.client5.http.impl.auth.SPNegoScheme;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.sync.BasicCredentialsProvider;
+import org.apache.hc.client5.http.impl.sync.HttpClients;
+import org.apache.hc.client5.http.sync.methods.HttpGet;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.HttpException;
@@ -96,7 +94,7 @@ public class TestSPNegoScheme extends LocalServerTestBase {
         GSSContext context = Mockito.mock(GSSContext.class);
 
         NegotiateSchemeWithMockGssManager() throws Exception {
-            super(KerberosConfig.DEFAULT, SystemDefaultDnsResolver.INSTANCE);
+            super(true);
             Mockito.when(context.initSecContext(
                     ArgumentMatchers.<byte[]>any(), ArgumentMatchers.anyInt(), ArgumentMatchers.anyInt()))
                     .thenReturn("12345678".getBytes());
@@ -151,13 +149,13 @@ public class TestSPNegoScheme extends LocalServerTestBase {
      */
     @Test
     public void testDontTryToAuthenticateEndlessly() throws Exception {
-        this.server.registerHandler("*", new PleaseNegotiateService());
+        this.serverBootstrap.registerHandler("*", new PleaseNegotiateService());
         final HttpHost target = start();
 
         final AuthSchemeProvider nsf = new NegotiateSchemeProviderWithMockGssManager();
         final BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider();
         final Credentials use_jaas_creds = new UseJaasCredentials();
-        credentialsProvider.setCredentials(new AuthScope(null, null, -1, null, null), use_jaas_creds);
+        credentialsProvider.setCredentials(new AuthScope(null, -1, null), use_jaas_creds);
 
         final Registry<AuthSchemeProvider> authSchemeRegistry = RegistryBuilder.<AuthSchemeProvider>create()
             .register(AuthSchemes.SPNEGO, nsf)
@@ -181,14 +179,14 @@ public class TestSPNegoScheme extends LocalServerTestBase {
      */
     @Test
     public void testNoTokenGeneratedError() throws Exception {
-        this.server.registerHandler("*", new PleaseNegotiateService());
+        this.serverBootstrap.registerHandler("*", new PleaseNegotiateService());
         final HttpHost target = start();
 
         final AuthSchemeProvider nsf = new NegotiateSchemeProviderWithMockGssManager();
 
         final BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider();
         final Credentials use_jaas_creds = new UseJaasCredentials();
-        credentialsProvider.setCredentials(new AuthScope(null, null, -1, null, null), use_jaas_creds);
+        credentialsProvider.setCredentials(new AuthScope(null, -1, null), use_jaas_creds);
 
         final Registry<AuthSchemeProvider> authSchemeRegistry = RegistryBuilder.<AuthSchemeProvider>create()
             .register(AuthSchemes.SPNEGO, nsf)

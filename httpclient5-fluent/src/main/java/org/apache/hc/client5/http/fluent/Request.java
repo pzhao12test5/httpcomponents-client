@@ -41,18 +41,18 @@ import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 
-import org.apache.hc.client5.http.classic.methods.HttpDelete;
-import org.apache.hc.client5.http.classic.methods.HttpGet;
-import org.apache.hc.client5.http.classic.methods.HttpHead;
-import org.apache.hc.client5.http.classic.methods.HttpOptions;
-import org.apache.hc.client5.http.classic.methods.HttpPatch;
-import org.apache.hc.client5.http.classic.methods.HttpPost;
-import org.apache.hc.client5.http.classic.methods.HttpPut;
-import org.apache.hc.client5.http.classic.methods.HttpTrace;
-import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
 import org.apache.hc.client5.http.config.Configurable;
 import org.apache.hc.client5.http.config.RequestConfig;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.sync.CloseableHttpClient;
+import org.apache.hc.client5.http.sync.methods.HttpDelete;
+import org.apache.hc.client5.http.sync.methods.HttpGet;
+import org.apache.hc.client5.http.sync.methods.HttpHead;
+import org.apache.hc.client5.http.sync.methods.HttpOptions;
+import org.apache.hc.client5.http.sync.methods.HttpPatch;
+import org.apache.hc.client5.http.sync.methods.HttpPost;
+import org.apache.hc.client5.http.sync.methods.HttpPut;
+import org.apache.hc.client5.http.sync.methods.HttpTrace;
+import org.apache.hc.client5.http.sync.methods.HttpUriRequestBase;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.Header;
@@ -66,7 +66,7 @@ import org.apache.hc.core5.http.io.entity.FileEntity;
 import org.apache.hc.core5.http.io.entity.InputStreamEntity;
 import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.net.URLEncodedUtils;
-import org.apache.hc.core5.util.Timeout;
+import org.apache.hc.core5.util.TimeValue;
 
 public class Request {
 
@@ -76,7 +76,8 @@ public class Request {
 
     private final HttpUriRequestBase request;
     private Boolean useExpectContinue;
-    private Timeout connectionTimeout;
+    private TimeValue socketTmeout;
+    private TimeValue connectTimeout;
     private HttpHost proxy;
 
     private SimpleDateFormat dateFormatter;
@@ -170,8 +171,11 @@ public class Request {
         if (this.useExpectContinue != null) {
             builder.setExpectContinueEnabled(this.useExpectContinue);
         }
-        if (this.connectionTimeout != null) {
-            builder.setConnectionTimeout(this.connectionTimeout);
+        if (this.socketTmeout != null) {
+            builder.setSocketTimeout(this.socketTmeout);
+        }
+        if (this.connectTimeout != null) {
+            builder.setConnectTimeout(this.connectTimeout);
         }
         if (this.proxy != null) {
             builder.setProxy(this.proxy);
@@ -279,8 +283,13 @@ public class Request {
 
     //// HTTP connection parameter operations
 
-    public Request connectionTimeout(final Timeout timeout) {
-        this.connectionTimeout = timeout;
+    public Request socketTimeout(final TimeValue timeout) {
+        this.socketTmeout = timeout;
+        return this;
+    }
+
+    public Request connectTimeout(final TimeValue timeout) {
+        this.connectTimeout = timeout;
         return this;
     }
 

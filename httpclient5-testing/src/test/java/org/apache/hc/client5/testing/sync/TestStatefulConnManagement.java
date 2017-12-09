@@ -29,10 +29,10 @@ package org.apache.hc.client5.testing.sync;
 import java.io.IOException;
 
 import org.apache.hc.client5.http.HttpRoute;
-import org.apache.hc.client5.http.UserTokenHandler;
-import org.apache.hc.client5.http.classic.methods.HttpGet;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.sync.CloseableHttpClient;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
+import org.apache.hc.client5.http.protocol.UserTokenHandler;
+import org.apache.hc.client5.http.sync.methods.HttpGet;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.EndpointDetails;
@@ -75,7 +75,7 @@ public class TestStatefulConnManagement extends LocalServerTestBase {
         final int workerCount = 5;
         final int requestCount = 5;
 
-        this.server.registerHandler("*", new SimpleService());
+        this.serverBootstrap.registerHandler("*", new SimpleService());
 
         this.connManager.setMaxTotal(workerCount);
         this.connManager.setDefaultMaxPerRoute(workerCount);
@@ -107,7 +107,7 @@ public class TestStatefulConnManagement extends LocalServerTestBase {
             worker.start();
         }
         for (final HttpWorker worker : workers) {
-            worker.join(LONG_TIMEOUT.toMillis());
+            worker.join(10000);
         }
         for (final HttpWorker worker : workers) {
             final Exception ex = worker.getException();
@@ -194,7 +194,7 @@ public class TestStatefulConnManagement extends LocalServerTestBase {
 
         final int maxConn = 2;
 
-        this.server.registerHandler("*", new SimpleService());
+        this.serverBootstrap.registerHandler("*", new SimpleService());
 
         this.connManager.setMaxTotal(maxConn);
         this.connManager.setDefaultMaxPerRoute(maxConn);
@@ -229,7 +229,7 @@ public class TestStatefulConnManagement extends LocalServerTestBase {
         // Send it to another route. Must be a keepalive.
         final HttpContext context2 = new BasicHttpContext();
         final ClassicHttpResponse response2 = this.httpclient.execute(
-                new HttpHost("127.0.0.1", this.server.getPort()), new HttpGet("/"), context2);
+                new HttpHost("127.0.0.1", this.server.getLocalPort()), new HttpGet("/"), context2);
         EntityUtils.consume(response2.getEntity());
         // ConnPoolByRoute now has 2 free connexions, out of its 2 max.
         // The [localhost][stuff] RouteSpcfcPool is the same as earlier

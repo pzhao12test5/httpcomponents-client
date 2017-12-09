@@ -75,16 +75,19 @@ public class TestMultipartForm {
             "--foo\r\n" +
             "Content-Disposition: form-data; name=\"field1\"\r\n" +
             "Content-Type: text/plain; charset=ISO-8859-1\r\n" +
+            "Content-Transfer-Encoding: 8bit\r\n" +
             "\r\n" +
             "this stuff\r\n" +
             "--foo\r\n" +
             "Content-Disposition: form-data; name=\"field2\"\r\n" +
             "Content-Type: text/plain; charset=UTF-8\r\n" +
+            "Content-Transfer-Encoding: 8bit\r\n" +
             "\r\n" +
             "that stuff\r\n" +
             "--foo\r\n" +
             "Content-Disposition: form-data; name=\"field3\"\r\n" +
             "Content-Type: text/plain; charset=ISO-8859-1\r\n" +
+            "Content-Transfer-Encoding: 8bit\r\n" +
             "\r\n" +
             "all kind of stuff\r\n" +
             "--foo--\r\n";
@@ -112,11 +115,13 @@ public class TestMultipartForm {
                 "--foo\r\n" +
                         "Content-Disposition: form-data; name=\"field1\"\r\n" +
                         "Content-Type: text/plain; charset=ISO-8859-1\r\n" +
+                        "Content-Transfer-Encoding: 8bit\r\n" +
                         "\r\n" +
                         "this stuff\r\n" +
                         "--foo\r\n" +
                         "Content-Disposition: form-data; name=\"field2\"\r\n" +
                         "Content-Type: stuff/plain; param=value\r\n" +
+                        "Content-Transfer-Encoding: 8bit\r\n" +
                         "\r\n" +
                         "that stuff\r\n" +
                         "--foo--\r\n";
@@ -151,12 +156,14 @@ public class TestMultipartForm {
             "Content-Disposition: form-data; name=\"field1\"; " +
                 "filename=\"" + tmpfile.getName() + "\"\r\n" +
             "Content-Type: application/octet-stream\r\n" +
+            "Content-Transfer-Encoding: binary\r\n" +
             "\r\n" +
             "some random whatever\r\n" +
             "--foo\r\n" +
             "Content-Disposition: form-data; name=\"field2\"; " +
                 "filename=\"file.tmp\"\r\n" +
             "Content-Type: application/octet-stream\r\n" +
+            "Content-Transfer-Encoding: binary\r\n" +
             "\r\n" +
             "some random whatever\r\n" +
             "--foo--\r\n";
@@ -194,18 +201,21 @@ public class TestMultipartForm {
             "Content-Disposition: form-data; name=\"field1\"; " +
                 "filename=\"" + tmpfile.getName() + "\"\r\n" +
             "Content-Type: application/octet-stream\r\n" +
+            "Content-Transfer-Encoding: binary\r\n" +
             "\r\n" +
             "some random whatever\r\n" +
             "--foo\r\n" +
             "Content-Disposition: form-data; name=\"field2\"; " +
                 "filename=\"test-file\"\r\n" +
             "Content-Type: text/plain; charset=US-ASCII\r\n" +
+            "Content-Transfer-Encoding: binary\r\n" +
             "\r\n" +
             "some random whatever\r\n" +
             "--foo\r\n" +
             "Content-Disposition: form-data; name=\"field3\"; " +
                 "filename=\"file.tmp\"\r\n" +
             "Content-Type: application/octet-stream\r\n" +
+            "Content-Transfer-Encoding: binary\r\n" +
             "\r\n" +
             "some random whatever\r\n" +
             "--foo--\r\n";
@@ -243,18 +253,21 @@ public class TestMultipartForm {
             "Content-Disposition: form-data; name=\"field1\u0414\"; " +
                 "filename=\"" + tmpfile.getName() + "\"\r\n" +
             "Content-Type: application/octet-stream\r\n" +
+            "Content-Transfer-Encoding: binary\r\n" +
             "\r\n" +
             "some random whatever\r\n" +
             "--foo\r\n" +
             "Content-Disposition: form-data; name=\"field2\"; " +
                 "filename=\"test-file\"\r\n" +
             "Content-Type: text/plain; charset=US-ASCII\r\n" +
+            "Content-Transfer-Encoding: binary\r\n" +
             "\r\n" +
             "some random whatever\r\n" +
             "--foo\r\n" +
             "Content-Disposition: form-data; name=\"field3\"; " +
                 "filename=\"file.tmp\"\r\n" +
             "Content-Type: application/octet-stream\r\n" +
+            "Content-Transfer-Encoding: binary\r\n" +
             "\r\n" +
             "some random whatever\r\n" +
             "--foo--\r\n";
@@ -351,12 +364,14 @@ public class TestMultipartForm {
             "--foo\r\n" +
             "Content-Disposition: form-data; name=\"field1\"\r\n" +
             "Content-Type: text/plain; charset=ISO-8859-1\r\n" +
+            "Content-Transfer-Encoding: 8bit\r\n" +
             "\r\n").getBytes(StandardCharsets.US_ASCII));
         out2.write(s1.getBytes(StandardCharsets.ISO_8859_1));
         out2.write(("\r\n" +
             "--foo\r\n" +
             "Content-Disposition: form-data; name=\"field2\"\r\n" +
             "Content-Type: text/plain; charset=KOI8-R\r\n" +
+            "Content-Transfer-Encoding: 8bit\r\n" +
             "\r\n").getBytes(StandardCharsets.US_ASCII));
         out2.write(s2.getBytes(Charset.forName("KOI8-R")));
         out2.write(("\r\n" +

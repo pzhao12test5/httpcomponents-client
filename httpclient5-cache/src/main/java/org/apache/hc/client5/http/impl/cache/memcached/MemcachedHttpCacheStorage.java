@@ -29,12 +29,13 @@ package org.apache.hc.client5.http.impl.cache.memcached;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
-import org.apache.hc.client5.http.cache.HttpCacheEntrySerializer;
-import org.apache.hc.client5.http.cache.ResourceIOException;
-import org.apache.hc.client5.http.impl.cache.AbstractBinaryCacheStorage;
+import org.apache.hc.client5.http.cache.HttpCacheEntry;
+import org.apache.hc.client5.http.cache.HttpCacheStorage;
+import org.apache.hc.client5.http.cache.HttpCacheUpdateCallback;
+import org.apache.hc.client5.http.cache.HttpCacheUpdateException;
 import org.apache.hc.client5.http.impl.cache.CacheConfig;
-import org.apache.hc.client5.http.impl.cache.ByteArrayCacheEntrySerializer;
-import org.apache.hc.core5.util.Args;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import net.spy.memcached.CASResponse;
 import net.spy.memcached.CASValue;
@@ -71,6 +72,15 @@ import net.spy.memcached.OperationTimeoutException;
  * </p>
  *
  * <p>
+ * Because this hashing scheme can potentially result in key collisions (though
+ * highly unlikely), we need to store the higher-level logical storage key along
+ * with the {@link HttpCacheEntry} so that we can re-check it on retrieval. There
+ * is a default serialization scheme provided for this, although you can provide
+ * your own implementations of {@link MemcachedCacheEntry} and
+ * {@link MemcachedCacheEntryFactory} to customize this serialization.
+ * </p>
+ *
+ * <p>
  * Please refer to the <a href="http://code.google.com/p/memcached/wiki/NewStart">
  * memcached documentation</a> and in particular to the documentation for
  * the <a href="http://code.google.com/p/spymemcached/">spymemcached
@@ -80,10 +90,14 @@ import net.spy.memcached.OperationTimeoutException;
  *
  * @since 4.1
  */
-public class MemcachedHttpCacheStorage extends AbstractBinaryCacheStorage<CASValue<Object>> {
+public class MemcachedHttpCacheStorage implements HttpCacheStorage {
+
+    private final Logger log = LogManager.getLogger(getClass());
 
     private final MemcachedClientIF client;
     private final KeyHashingScheme keyHashingScheme;
+    private final MemcachedCacheEntryFactory memcachedCacheEntryFactory;
+    private final int maxUpdateRetries;
 
     /**
      * Create a storage backend talking to a <i>memcached</i> instance
@@ -103,7 +117,8 @@ public class MemcachedHttpCacheStorage extends AbstractBinaryCacheStorage<CASVal
      * @param cache client to use for communicating with <i>memcached</i>
      */
     public MemcachedHttpCacheStorage(final MemcachedClientIF cache) {
-        this(cache, CacheConfig.DEFAULT, ByteArrayCacheEntrySerializer.INSTANCE, SHA256KeyHashingScheme.INSTANCE);
+        this(cache, CacheConfig.DEFAULT, new MemcachedCacheEntryFactoryImpl(),
+                new SHA256KeyHashingScheme());
     }
 
     /**
@@ -112,83 +127,146 @@ public class MemcachedHttpCacheStorage extends AbstractBinaryCacheStorage<CASVal
      * mechanisms.
      * @param client how to talk to <i>memcached</i>
      * @param config apply HTTP cache-related options
-     * @param serializer alternative serialization mechanism
+     * @param memcachedCacheEntryFactory Factory pattern used for obtaining
+     *   instances of alternative cache entry serialization mechanisms
      * @param keyHashingScheme how to map higher-level logical "storage keys"
      *   onto "cache keys" suitable for use with memcached
      */
-    public MemcachedHttpCacheStorage(
-            final MemcachedClientIF client,
-            final CacheConfig config,
-            final HttpCacheEntrySerializer<byte[]> serializer,
+    public MemcachedHttpCacheStorage(final MemcachedClientIF client, final CacheConfig config,
+            final MemcachedCacheEntryFactory memcachedCacheEntryFactory,
             final KeyHashingScheme keyHashingScheme) {
-        super((config != null ? config : CacheConfig.DEFAULT).getMaxUpdateRetries(),
-                serializer != null ? serializer : ByteArrayCacheEntrySerializer.INSTANCE);
-        this.client = Args.notNull(client, "Memcached client");
+        this.client = client;
+        this.maxUpdateRetries = config.getMaxUpdateRetries();
+        this.memcachedCacheEntryFactory = memcachedCacheEntryFactory;
         this.keyHashingScheme = keyHashingScheme;
     }
 
     @Override
-    protected String digestToStorageKey(final String key) {
-        return keyHashingScheme.hash(key);
-    }
-
-    @Override
-    protected void store(final String storageKey, final byte[] storageObject) throws ResourceIOException {
+    public void putEntry(final String url, final HttpCacheEntry entry) throws IOException  {
+        final byte[] bytes = serializeEntry(url, entry);
+        final String key = getCacheKey(url);
+        if (key == null) {
+            return;
+        }
         try {
-            client.set(storageKey, 0, storageObject);
+            client.set(key, 0, bytes);
         } catch (final OperationTimeoutException ex) {
             throw new MemcachedOperationTimeoutException(ex);
         }
     }
 
-    private byte[] castAsByteArray(final Object storageObject) throws ResourceIOException {
-        if (storageObject == null) {
+    private String getCacheKey(final String url) {
+        try {
+            return keyHashingScheme.hash(url);
+        } catch (final MemcachedKeyHashingException mkhe) {
             return null;
         }
-        if (storageObject instanceof byte[]) {
-            return (byte[]) storageObject;
-        } else {
-            throw new ResourceIOException("Unexpected cache content: " + storageObject.getClass());
+    }
+
+    private byte[] serializeEntry(final String url, final HttpCacheEntry hce) throws IOException {
+        final MemcachedCacheEntry mce = memcachedCacheEntryFactory.getMemcachedCacheEntry(url, hce);
+        try {
+            return mce.toByteArray();
+        } catch (final MemcachedSerializationException mse) {
+            final IOException ioe = new IOException();
+            ioe.initCause(mse);
+            throw ioe;
         }
     }
 
-    @Override
-    protected byte[] restore(final String storageKey) throws ResourceIOException {
+    private byte[] convertToByteArray(final Object o) {
+        if (o == null) {
+            return null;
+        }
+        if (!(o instanceof byte[])) {
+            log.warn("got a non-bytearray back from memcached: " + o);
+            return null;
+        }
+        return (byte[])o;
+    }
+
+    private MemcachedCacheEntry reconstituteEntry(final Object o) {
+        final byte[] bytes = convertToByteArray(o);
+        if (bytes == null) {
+            return null;
+        }
+        final MemcachedCacheEntry mce = memcachedCacheEntryFactory.getUnsetCacheEntry();
         try {
-            return castAsByteArray(client.get(storageKey));
+            mce.set(bytes);
+        } catch (final MemcachedSerializationException mse) {
+            return null;
+        }
+        return mce;
+    }
+
+    @Override
+    public HttpCacheEntry getEntry(final String url) throws IOException {
+        final String key = getCacheKey(url);
+        if (key == null) {
+            return null;
+        }
+        try {
+            final MemcachedCacheEntry mce = reconstituteEntry(client.get(key));
+            if (mce == null || !url.equals(mce.getStorageKey())) {
+                return null;
+            }
+            return mce.getHttpCacheEntry();
         } catch (final OperationTimeoutException ex) {
             throw new MemcachedOperationTimeoutException(ex);
         }
     }
 
     @Override
-    protected CASValue<Object> getForUpdateCAS(final String storageKey) throws ResourceIOException {
+    public void removeEntry(final String url) throws IOException {
+        final String key = getCacheKey(url);
+        if (key == null) {
+            return;
+        }
         try {
-            return client.gets(storageKey);
+            client.delete(key);
         } catch (final OperationTimeoutException ex) {
             throw new MemcachedOperationTimeoutException(ex);
         }
     }
 
     @Override
-    protected byte[] getStorageObject(final CASValue<Object> casValue) throws ResourceIOException {
-        return castAsByteArray(casValue.getValue());
-    }
-
-    @Override
-    protected boolean updateCAS(
-            final String storageKey, final CASValue<Object> casValue, final byte[] storageObject) throws ResourceIOException {
-        final CASResponse casResult = client.cas(storageKey, casValue.getCas(), storageObject);
-        return casResult == CASResponse.OK;
-    }
-
-    @Override
-    protected void delete(final String storageKey) throws ResourceIOException {
-        try {
-            client.delete(storageKey);
-        } catch (final OperationTimeoutException ex) {
-            throw new MemcachedOperationTimeoutException(ex);
+    public void updateEntry(final String url, final HttpCacheUpdateCallback callback)
+            throws HttpCacheUpdateException, IOException {
+        int numRetries = 0;
+        final String key = getCacheKey(url);
+        if (key == null) {
+            throw new HttpCacheUpdateException("couldn't generate cache key");
         }
-    }
+        do {
+            try {
+                final CASValue<Object> v = client.gets(key);
+                MemcachedCacheEntry mce = (v == null) ? null
+                        : reconstituteEntry(v.getValue());
+                if (mce != null && (!url.equals(mce.getStorageKey()))) {
+                    mce = null;
+                }
+                final HttpCacheEntry existingEntry = (mce == null) ? null
+                        : mce.getHttpCacheEntry();
+                final HttpCacheEntry updatedEntry = callback.update(existingEntry);
 
+                if (existingEntry == null) {
+                    putEntry(url, updatedEntry);
+                    return;
+
+                }
+                final byte[] updatedBytes = serializeEntry(url, updatedEntry);
+                final CASResponse casResult = client.cas(key, v.getCas(),
+                        updatedBytes);
+                if (casResult != CASResponse.OK) {
+                    numRetries++;
+                } else {
+                    return;
+                }
+            } catch (final OperationTimeoutException ex) {
+                throw new MemcachedOperationTimeoutException(ex);
+            }
+        } while (numRetries <= maxUpdateRetries);
+
+        throw new HttpCacheUpdateException("Failed to processChallenge");
+    }
 }

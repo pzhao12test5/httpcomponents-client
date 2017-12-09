@@ -60,20 +60,17 @@ class ResponseCachingPolicy {
     private static final String[] AUTH_CACHEABLE_PARAMS = {
             "s-maxage", HeaderConstants.CACHE_CONTROL_MUST_REVALIDATE, HeaderConstants.PUBLIC
     };
-
-    private final static Set<Integer> CACHEABLE_STATUS_CODES =
-            new HashSet<>(Arrays.asList(HttpStatus.SC_OK,
-                    HttpStatus.SC_NON_AUTHORITATIVE_INFORMATION,
-                    HttpStatus.SC_MULTIPLE_CHOICES,
-                    HttpStatus.SC_MOVED_PERMANENTLY,
-                    HttpStatus.SC_GONE));
-
-    private final Logger log = LogManager.getLogger(getClass());
-
     private final long maxObjectSizeBytes;
     private final boolean sharedCache;
     private final boolean neverCache1_0ResponsesWithQueryString;
-    private final Set<Integer> uncacheableStatusCodes;
+    private final Logger log = LogManager.getLogger(getClass());
+    private static final Set<Integer> cacheableStatuses =
+        new HashSet<>(Arrays.asList(HttpStatus.SC_OK,
+                HttpStatus.SC_NON_AUTHORITATIVE_INFORMATION,
+                HttpStatus.SC_MULTIPLE_CHOICES,
+                HttpStatus.SC_MOVED_PERMANENTLY,
+                HttpStatus.SC_GONE));
+    private final Set<Integer> uncacheableStatuses;
 
     /**
      * Define a cache policy that limits the size of things that should be stored
@@ -94,9 +91,11 @@ class ResponseCachingPolicy {
         this.sharedCache = sharedCache;
         this.neverCache1_0ResponsesWithQueryString = neverCache1_0ResponsesWithQueryString;
         if (allow303Caching) {
-            uncacheableStatusCodes = new HashSet<>(Arrays.asList(HttpStatus.SC_PARTIAL_CONTENT));
+            uncacheableStatuses = new HashSet<>(
+                    Arrays.asList(HttpStatus.SC_PARTIAL_CONTENT));
         } else {
-            uncacheableStatusCodes = new HashSet<>(Arrays.asList(HttpStatus.SC_PARTIAL_CONTENT, HttpStatus.SC_SEE_OTHER));
+            uncacheableStatuses = new HashSet<>(Arrays.asList(
+                    HttpStatus.SC_PARTIAL_CONTENT, HttpStatus.SC_SEE_OTHER));
         }
     }
 
@@ -110,28 +109,21 @@ class ResponseCachingPolicy {
     public boolean isResponseCacheable(final String httpMethod, final HttpResponse response) {
         boolean cacheable = false;
 
-        if (!HeaderConstants.GET_METHOD.equals(httpMethod) && !HeaderConstants.HEAD_METHOD.equals(httpMethod)) {
-            if (log.isDebugEnabled()) {
-                log.debug(httpMethod + " method response is not cacheable");
-            }
+        if (!(HeaderConstants.GET_METHOD.equals(httpMethod) ||
+                HeaderConstants.HEAD_METHOD.equals(httpMethod))) {
+            log.debug("Response was not cacheable.");
             return false;
         }
 
         final int status = response.getCode();
-        if (CACHEABLE_STATUS_CODES.contains(status)) {
+        if (cacheableStatuses.contains(status)) {
             // these response codes MAY be cached
             cacheable = true;
-        } else if (uncacheableStatusCodes.contains(status)) {
-            if (log.isDebugEnabled()) {
-                log.debug(status + " response is not cacheable");
-            }
+        } else if (uncacheableStatuses.contains(status)) {
             return false;
         } else if (unknownStatusCode(status)) {
             // a response with an unknown status code MUST NOT be
             // cached
-            if (log.isDebugEnabled()) {
-                log.debug(status + " response is unknown");
-            }
             return false;
         }
 
@@ -139,32 +131,30 @@ class ResponseCachingPolicy {
         if (contentLength != null) {
             final long contentLengthValue = Long.parseLong(contentLength.getValue());
             if (contentLengthValue > this.maxObjectSizeBytes) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Response content length exceeds " + this.maxObjectSizeBytes);
-                }
                 return false;
             }
         }
 
-        if (response.containsHeaders(HeaderConstants.AGE) > 1) {
-            log.debug("Multiple Age headers");
+        final Header[] ageHeaders = response.getHeaders(HeaderConstants.AGE);
+
+        if (ageHeaders.length > 1) {
             return false;
         }
 
-        if (response.containsHeaders(HeaderConstants.EXPIRES) > 1) {
-            log.debug("Multiple Expires headers");
+        final Header[] expiresHeaders = response.getHeaders(HeaderConstants.EXPIRES);
+
+        if (expiresHeaders.length > 1) {
             return false;
         }
 
-        if (response.containsHeaders(HttpHeaders.DATE) > 1) {
-            log.debug("Multiple Date headers");
+        final Header[] dateHeaders = response.getHeaders(HttpHeaders.DATE);
+
+        if (dateHeaders.length != 1) {
             return false;
         }
 
-        final Header h = response.getFirstHeader(HttpHeaders.DATE);
-        final Date date = h != null ? DateUtils.parseDate(h.getValue()) : null;
+        final Date date = DateUtils.parseDate(dateHeaders[0].getValue());
         if (date == null) {
-            log.debug("Invalid / missing Date header");
             return false;
         }
 
@@ -172,19 +162,15 @@ class ResponseCachingPolicy {
         while (it.hasNext()) {
             final HeaderElement elem = it.next();
             if ("*".equals(elem.getName())) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Vary * found");
-                }
                 return false;
             }
         }
 
         if (isExplicitlyNonCacheable(response)) {
-            log.debug("Response is explicitly non-cacheable");
             return false;
         }
 
-        return cacheable || isExplicitlyCacheable(response);
+        return (cacheable || isExplicitlyCacheable(response));
     }
 
     private boolean unknownStatusCode(final int status) {
@@ -253,39 +239,34 @@ class ResponseCachingPolicy {
      * @return {@code true} if response is cacheable
      */
     public boolean isResponseCacheable(final HttpRequest request, final HttpResponse response) {
-        final ProtocolVersion version = request.getVersion() != null ? request.getVersion() : HttpVersion.DEFAULT;
-        if (version.compareToVersion(HttpVersion.HTTP_1_1) > 0) {
-            if (log.isDebugEnabled()) {
-                log.debug("Protocol version " + version + " is non-cacheable");
-            }
+        if (requestProtocolGreaterThanAccepted(request)) {
+            log.debug("Response was not cacheable.");
             return false;
         }
 
         final String[] uncacheableRequestDirectives = { HeaderConstants.CACHE_CONTROL_NO_STORE };
         if (hasCacheControlParameterFrom(request,uncacheableRequestDirectives)) {
-            log.debug("Response is explcitily non-cacheable per cache control directive");
             return false;
         }
 
         if (request.getRequestUri().contains("?")) {
             if (neverCache1_0ResponsesWithQueryString && from1_0Origin(response)) {
-                log.debug("Response is not cacheable as it had a query string");
+                log.debug("Response was not cacheable as it had a query string.");
                 return false;
             } else if (!isExplicitlyCacheable(response)) {
-                log.debug("Response is not cacheable as it is missing explicit caching headers");
+                log.debug("Response was not cacheable as it is missing explicit caching headers.");
                 return false;
             }
         }
 
         if (expiresHeaderLessOrEqualToDateHeaderAndNoCacheControl(response)) {
-            log.debug("Expires header less or equal to Date header and no cache control directives");
             return false;
         }
 
         if (sharedCache) {
-            if (request.containsHeaders(HeaderConstants.AUTHORIZATION) > 0
+            final Header[] authNHeaders = request.getHeaders(HeaderConstants.AUTHORIZATION);
+            if (authNHeaders != null && authNHeaders.length > 0
                     && !hasCacheControlParameterFrom(response, AUTH_CACHEABLE_PARAMS)) {
-                log.debug("Request contains private credentials");
                 return false;
             }
         }
@@ -294,7 +275,8 @@ class ResponseCachingPolicy {
         return isResponseCacheable(method, response);
     }
 
-    private boolean expiresHeaderLessOrEqualToDateHeaderAndNoCacheControl(final HttpResponse response) {
+    private boolean expiresHeaderLessOrEqualToDateHeaderAndNoCacheControl(
+            final HttpResponse response) {
         if (response.getFirstHeader(HeaderConstants.CACHE_CONTROL) != null) {
             return false;
         }
@@ -324,6 +306,11 @@ class ResponseCachingPolicy {
         }
         final ProtocolVersion version = response.getVersion() != null ? response.getVersion() : HttpVersion.DEFAULT;
         return HttpVersion.HTTP_1_0.equals(version);
+    }
+
+    private boolean requestProtocolGreaterThanAccepted(final HttpRequest req) {
+        final ProtocolVersion version = req.getVersion() != null ? req.getVersion() : HttpVersion.DEFAULT;
+        return version.compareToVersion(HttpVersion.HTTP_1_1) > 0;
     }
 
 }

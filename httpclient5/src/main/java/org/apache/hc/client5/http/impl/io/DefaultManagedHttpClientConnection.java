@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 
+import org.apache.hc.client5.http.impl.logging.LoggingSocketHolder;
 import org.apache.hc.client5.http.io.ManagedHttpClientConnection;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
@@ -56,10 +57,9 @@ import org.apache.logging.log4j.Logger;
 
 /**
  * Default {@link ManagedHttpClientConnection} implementation.
- *
  * @since 4.3
  */
-final class DefaultManagedHttpClientConnection
+public class DefaultManagedHttpClientConnection
         extends DefaultBHttpClientConnection implements ManagedHttpClientConnection, Identifiable {
 
     private final Logger log = LogManager.getLogger(DefaultManagedHttpClientConnection.class);
@@ -68,8 +68,6 @@ final class DefaultManagedHttpClientConnection
 
     private final String id;
     private final AtomicBoolean closed;
-
-    private int socketTimeout;
 
     public DefaultManagedHttpClientConnection(
             final String id,
@@ -103,7 +101,6 @@ final class DefaultManagedHttpClientConnection
             throw new InterruptedIOException("Connection already shutdown");
         }
         super.bind(socketHolder);
-        socketTimeout = socketHolder.getSocket().getSoTimeout();
     }
 
     @Override
@@ -153,7 +150,6 @@ final class DefaultManagedHttpClientConnection
     @Override
     public void bind(final Socket socket) throws IOException {
         super.bind(this.wirelog.isDebugEnabled() ? new LoggingSocketHolder(socket, this.id, this.wirelog) : new SocketHolder(socket));
-        socketTimeout = socket.getSoTimeout();
     }
 
     @Override
@@ -176,16 +172,6 @@ final class DefaultManagedHttpClientConnection
                 this.headerlog.debug(this.id + " >> " + header.toString());
             }
         }
-    }
-
-    @Override
-    public void passivate() {
-        super.setSocketTimeout(0);
-    }
-
-    @Override
-    public void activate() {
-        super.setSocketTimeout(socketTimeout);
     }
 
 }

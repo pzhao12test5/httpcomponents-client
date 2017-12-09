@@ -26,6 +26,9 @@
  */
 package org.apache.hc.client5.http.cache;
 
+import java.io.IOException;
+import java.io.InputStream;
+
 /**
  * Generates {@link Resource} instances for handling cached
  * HTTP response bodies.
@@ -36,25 +39,20 @@ public interface ResourceFactory {
 
     /**
      * Creates a {@link Resource} from a given response body.
-     * @param requestId a unique identifier for this particular response body.
-     * @param content byte array that represents the origin HTTP response body.
+     * @param requestId a unique identifier for this particular
+     *   response body
+     * @param instream the original {@link InputStream}
+     *   containing the response body of the origin HTTP response.
+     * @param limit maximum number of bytes to consume of the
+     *   response body; if this limit is reached before the
+     *   response body is fully consumed, mark the limit has
+     *   having been reached and return a {@code Resource}
+     *   containing the data read to that point.
      * @return a {@code Resource} containing however much of
      *   the response body was successfully read.
-     * @throws ResourceIOException
+     * @throws IOException
      */
-    Resource generate(String requestId, byte[] content) throws ResourceIOException;
-
-    /**
-     * Creates a {@link Resource} from a given response body.
-     * @param requestId a unique identifier for this particular response body.
-     * @param content byte array that represents the origin HTTP response body.
-     * @param off   the start offset in the array.
-     * @param len   the number of bytes to read from the array.
-     * @return a {@code Resource} containing however much of
-     *   the response body was successfully read.
-     * @throws ResourceIOException
-     */
-    Resource generate(String requestId, byte[] content, int off, int len) throws ResourceIOException;
+    Resource generate(String requestId, InputStream instream, InputLimit limit) throws IOException;
 
     /**
      * Clones an existing {@link Resource}.
@@ -62,8 +60,8 @@ public interface ResourceFactory {
      *   with the cloned response body.
      * @param resource the original response body to clone.
      * @return the {@code Resource} copy
-     * @throws ResourceIOException
+     * @throws IOException
      */
-    Resource copy(String requestId, Resource resource) throws ResourceIOException;
+    Resource copy(String requestId, Resource resource) throws IOException;
 
 }

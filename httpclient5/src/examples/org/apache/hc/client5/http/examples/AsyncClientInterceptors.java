@@ -38,9 +38,9 @@ import org.apache.hc.client5.http.async.AsyncExecChain;
 import org.apache.hc.client5.http.async.AsyncExecChainHandler;
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequest;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
-import org.apache.hc.client5.http.impl.ChainElements;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.client5.http.impl.async.HttpAsyncClients;
+import org.apache.hc.client5.http.impl.sync.ChainElements;
 import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.EntityDetails;
@@ -57,7 +57,7 @@ import org.apache.hc.core5.http.nio.AsyncEntityProducer;
 import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.io.ShutdownType;
 import org.apache.hc.core5.reactor.IOReactorConfig;
-import org.apache.hc.core5.util.Timeout;
+import org.apache.hc.core5.util.TimeValue;
 
 /**
  * This example demonstrates how to insert custom request interceptor and an execution interceptor
@@ -68,7 +68,7 @@ public class AsyncClientInterceptors {
     public final static void main(final String[] args) throws Exception {
 
         final IOReactorConfig ioReactorConfig = IOReactorConfig.custom()
-                .setSoTimeout(Timeout.ofSeconds(5))
+                .setSoTimeout(TimeValue.ofSeconds(5))
                 .build();
 
         final CloseableHttpAsyncClient client = HttpAsyncClients.custom()

@@ -28,27 +28,18 @@ package org.apache.hc.client5.http.async.methods;
 
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpResponse;
-import org.apache.hc.core5.http.nio.AsyncEntityConsumer;
-import org.apache.hc.core5.http.nio.entity.BasicAsyncEntityConsumer;
+import org.apache.hc.core5.http.nio.entity.StringAsyncEntityConsumer;
 import org.apache.hc.core5.http.nio.support.AbstractAsyncResponseConsumer;
 
-public final class SimpleResponseConsumer extends AbstractAsyncResponseConsumer<SimpleHttpResponse, byte[]> {
+public final class SimpleResponseConsumer extends AbstractAsyncResponseConsumer<SimpleHttpResponse, String> {
 
-    SimpleResponseConsumer(final AsyncEntityConsumer<byte[]> entityConsumer) {
-        super(entityConsumer);
-    }
-
-    public static SimpleResponseConsumer create() {
-        return new SimpleResponseConsumer(new BasicAsyncEntityConsumer());
+    public SimpleResponseConsumer() {
+        super(new StringAsyncEntityConsumer());
     }
 
     @Override
-    protected SimpleHttpResponse buildResult(final HttpResponse response, final byte[] entity, final ContentType contentType) {
-        final SimpleHttpResponse simpleResponse = SimpleHttpResponse.copy(response);
-        if (entity != null) {
-            simpleResponse.setBodyBytes(entity, contentType);
-        }
-        return simpleResponse;
+    protected SimpleHttpResponse buildResult(final HttpResponse response, final String entity, final ContentType contentType) {
+        return new SimpleHttpResponse(response, entity, contentType);
     }
 
 }

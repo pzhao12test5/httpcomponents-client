@@ -73,6 +73,13 @@ public interface ContentDescriptor {
     String getCharset();
 
     /**
+     * Returns the body descriptors transfer encoding.
+     * @return The transfer encoding. Must not be null, but "7bit",
+     *   if no transfer-encoding was specified.
+     */
+    String getTransferEncoding();
+
+    /**
      * Returns the body descriptors content-length.
      * @return Content length, if known, or -1, to indicate the absence of a
      *   content-length header.

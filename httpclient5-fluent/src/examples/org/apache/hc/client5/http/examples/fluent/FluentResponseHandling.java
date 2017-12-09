@@ -34,14 +34,14 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
-import org.apache.hc.client5.http.ClientProtocolException;
-import org.apache.hc.client5.http.HttpResponseException;
 import org.apache.hc.client5.http.fluent.Request;
+import org.apache.hc.client5.http.protocol.ClientProtocolException;
+import org.apache.hc.client5.http.protocol.HttpResponseException;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpStatus;
-import org.apache.hc.core5.http.io.HttpClientResponseHandler;
+import org.apache.hc.core5.http.io.ResponseHandler;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
@@ -54,7 +54,7 @@ public class FluentResponseHandling {
 
     public static void main(String[] args)throws Exception {
         Document result = Request.Get("http://somehost/content")
-                .execute().handleResponse(new HttpClientResponseHandler<Document>() {
+                .execute().handleResponse(new ResponseHandler<Document>() {
 
             @Override
             public Document handleResponse(final ClassicHttpResponse response) throws IOException {

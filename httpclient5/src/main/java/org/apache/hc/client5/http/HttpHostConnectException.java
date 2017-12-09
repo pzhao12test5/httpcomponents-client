@@ -31,10 +31,10 @@ import java.net.ConnectException;
 import java.net.InetAddress;
 import java.util.Arrays;
 
-import org.apache.hc.core5.net.NamedEndpoint;
+import org.apache.hc.core5.http.HttpHost;
 
 /**
- * A {@link ConnectException} that specifies the {@link NamedEndpoint} that was
+ * A {@link ConnectException} that specifies the {@link HttpHost} that was
  * being connected to.
  *
  * @since 4.0
@@ -43,32 +43,29 @@ public class HttpHostConnectException extends ConnectException {
 
     private static final long serialVersionUID = -3194482710275220224L;
 
-    private final NamedEndpoint namedEndpoint;
+    private final HttpHost host;
 
     /**
      * Creates a HttpHostConnectException based on original {@link java.io.IOException}.
      *
-     * @since 5.0
+     * @since 4.3
      */
     public HttpHostConnectException(
             final IOException cause,
-            final NamedEndpoint namedEndpoint,
+            final HttpHost host,
             final InetAddress... remoteAddresses) {
         super("Connect to " +
-                (namedEndpoint != null ? namedEndpoint : "remote endpoint") +
+                (host != null ? host.toHostString() : "remote host") +
                 (remoteAddresses != null && remoteAddresses .length > 0 ?
                         " " + Arrays.asList(remoteAddresses) : "") +
                 ((cause != null && cause.getMessage() != null) ?
                         " failed: " + cause.getMessage() : " refused"));
-        this.namedEndpoint = namedEndpoint;
+        this.host = host;
         initCause(cause);
     }
 
-    /**
-     * @since 5.0
-     */
-    public NamedEndpoint getHost() {
-        return this.namedEndpoint;
+    public HttpHost getHost() {
+        return this.host;
     }
 
 }

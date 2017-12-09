@@ -26,7 +26,20 @@
  */
 package org.apache.hc.client5.http.impl;
 
+import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicLong;
+
+import org.apache.hc.core5.http.ClassicHttpRequest;
+import org.apache.hc.core5.http.ClassicHttpResponse;
+import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.HttpMessage;
+import org.apache.hc.core5.http.HttpRequest;
+import org.apache.hc.core5.http.HttpResponse;
+import org.apache.hc.core5.http.HttpVersion;
+import org.apache.hc.core5.http.message.BasicClassicHttpRequest;
+import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
+import org.apache.hc.core5.http.message.BasicHttpRequest;
+import org.apache.hc.core5.http.message.BasicHttpResponse;
 
 public final class ExecSupport {
 
@@ -34,6 +47,66 @@ public final class ExecSupport {
 
     public static long getNextExecNumber() {
         return COUNT.incrementAndGet();
+    }
+
+    private static void copyMessageProperties(final HttpMessage original, final HttpMessage copy) {
+        copy.setVersion(original.getVersion());
+        for (final Iterator<Header> it = original.headerIterator(); it.hasNext(); ) {
+            copy.addHeader(it.next());
+        }
+    }
+
+    private static void copyRequestProperties(final HttpRequest original, final HttpRequest copy) {
+        copyMessageProperties(original, copy);
+        if (copy.getVersion() == null) {
+            copy.setVersion(HttpVersion.DEFAULT);
+        }
+        copy.setScheme(original.getScheme());
+        copy.setAuthority(original.getAuthority());
+    }
+
+    private static void copyResponseProperties(final HttpResponse original, final HttpResponse copy) {
+        copyMessageProperties(original, copy);
+        copy.setLocale(copy.getLocale());
+        copy.setReasonPhrase(copy.getReasonPhrase());
+    }
+
+    public static HttpRequest copy(final HttpRequest original) {
+        if (original == null) {
+            return null;
+        }
+        final BasicHttpRequest copy = new BasicHttpRequest(original.getMethod(), original.getPath());
+        copyRequestProperties(original, copy);
+        return copy;
+    }
+
+    public static HttpResponse copy(final HttpResponse original) {
+        if (original == null) {
+            return null;
+        }
+        final BasicHttpResponse copy = new BasicHttpResponse(original.getCode());
+        copyResponseProperties(original, copy);
+        return copy;
+    }
+
+    public static ClassicHttpRequest copy(final ClassicHttpRequest original) {
+        if (original == null) {
+            return null;
+        }
+        final BasicClassicHttpRequest copy = new BasicClassicHttpRequest(original.getMethod(), original.getPath());
+        copyRequestProperties(original, copy);
+        copy.setEntity(original.getEntity());
+        return copy;
+    }
+
+    public static ClassicHttpResponse copy(final ClassicHttpResponse original) {
+        if (original == null) {
+            return null;
+        }
+        final BasicClassicHttpResponse copy = new BasicClassicHttpResponse(original.getCode());
+        copyResponseProperties(original, copy);
+        copy.setEntity(original.getEntity());
+        return copy;
     }
 
 }

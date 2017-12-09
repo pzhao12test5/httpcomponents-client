@@ -65,7 +65,6 @@ import org.apache.hc.core5.util.Args;
 import org.apache.hc.core5.util.Asserts;
 import org.apache.hc.core5.util.LangUtils;
 import org.apache.hc.core5.util.TimeValue;
-import org.apache.hc.core5.util.Timeout;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -151,6 +150,15 @@ public class BasicHttpClientConnectionManager implements HttpClientConnectionMan
     }
 
     @Override
+    protected void finalize() throws Throwable {
+        try {
+            close();
+        } finally { // Make sure we call overridden method even if shutdown barfs
+            super.finalize();
+        }
+    }
+
+    @Override
     public void close() {
         if (this.closed.compareAndSet(false, true)) {
             shutdownConnection();
@@ -173,12 +181,8 @@ public class BasicHttpClientConnectionManager implements HttpClientConnectionMan
         this.socketConfig = socketConfig != null ? socketConfig : SocketConfig.DEFAULT;
     }
 
-    public LeaseRequest lease(final HttpRoute route, final Object state) {
-        return lease(route, Timeout.DISABLED, state);
-    }
-
     @Override
-    public LeaseRequest lease(final HttpRoute route, final Timeout requestTimeout, final Object state) {
+    public LeaseRequest lease(final HttpRoute route, final Object state) {
         return new LeaseRequest() {
 
             @Override
@@ -245,8 +249,6 @@ public class BasicHttpClientConnectionManager implements HttpClientConnectionMan
         checkExpiry();
         if (this.conn == null) {
             this.conn = this.connFactory.createConnection(null);
-        } else {
-            this.conn.activate();
         }
         this.leased = true;
         return this.conn;
@@ -286,7 +288,6 @@ public class BasicHttpClientConnectionManager implements HttpClientConnectionMan
                 }
             } else {
                 this.state = state;
-                conn.passivate();
                 if (TimeValue.isPositive(keepAlive)) {
                     if (this.log.isDebugEnabled()) {
                         this.log.debug("Connection can be kept alive for " + keepAlive);

@@ -80,7 +80,7 @@ public class RandomHandler implements HttpRequestHandler {
         final URI uri;
         try {
             uri = request.getUri();
-        } catch (final URISyntaxException ex) {
+        } catch (URISyntaxException ex) {
             throw new ProtocolException(ex.getMessage(), ex);
         }
         final String path = uri.getPath();

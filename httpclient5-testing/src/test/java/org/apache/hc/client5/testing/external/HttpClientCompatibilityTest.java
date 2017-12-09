@@ -33,16 +33,16 @@ import javax.net.ssl.SSLContext;
 import org.apache.hc.client5.http.auth.AuthScope;
 import org.apache.hc.client5.http.auth.Credentials;
 import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
-import org.apache.hc.client5.http.classic.methods.HttpGet;
-import org.apache.hc.client5.http.classic.methods.HttpOptions;
 import org.apache.hc.client5.http.config.RequestConfig;
-import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.impl.sync.BasicCredentialsProvider;
+import org.apache.hc.client5.http.impl.sync.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.sync.HttpClients;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
 import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
+import org.apache.hc.client5.http.sync.methods.HttpGet;
+import org.apache.hc.client5.http.sync.methods.HttpOptions;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.HeaderElements;
 import org.apache.hc.core5.http.HttpHeaders;
@@ -151,7 +151,7 @@ public class HttpClientCompatibilityTest {
                 } else {
                     logResult(TestResult.NOK, options, "(status " + code + ")");
                 }
-            } catch (final Exception ex) {
+            } catch (Exception ex) {
                 logResult(TestResult.NOK, options, "(" + ex.getMessage() + ")");
             }
         }
@@ -161,7 +161,7 @@ public class HttpClientCompatibilityTest {
             final HttpClientContext context = HttpClientContext.create();
             context.setCredentialsProvider(credentialsProvider);
             final String[] requestUris = new String[] {"/", "/news.html", "/status.html"};
-            for (final String requestUri: requestUris) {
+            for (String requestUri: requestUris) {
                 final HttpGet httpGet = new HttpGet(requestUri);
                 try (ClassicHttpResponse response = client.execute(target, httpGet, context)) {
                     final int code = response.getCode();
@@ -171,7 +171,7 @@ public class HttpClientCompatibilityTest {
                     } else {
                         logResult(TestResult.NOK, httpGet, "(status " + code + ")");
                     }
-                } catch (final Exception ex) {
+                } catch (Exception ex) {
                     logResult(TestResult.NOK, httpGet, "(" + ex.getMessage() + ")");
                 }
             }
@@ -180,7 +180,7 @@ public class HttpClientCompatibilityTest {
         {
             connManager.closeIdle(TimeValue.NEG_ONE_MILLISECONDS);
             credentialsProvider.setCredentials(
-                    new AuthScope("http", "otherhost", -1, "Restricted Files", null),
+                    new AuthScope("otherhost", AuthScope.ANY_PORT, "Restricted Files"),
                     new UsernamePasswordCredentials("testuser", "nopassword".toCharArray()));
             final HttpClientContext context = HttpClientContext.create();
             context.setCredentialsProvider(credentialsProvider);
@@ -194,7 +194,7 @@ public class HttpClientCompatibilityTest {
                 } else {
                     logResult(TestResult.NOK, httpGetSecret, "(status " + code + ")");
                 }
-            } catch (final Exception ex) {
+            } catch (Exception ex) {
                 logResult(TestResult.NOK, httpGetSecret, "(" + ex.getMessage() + ")");
             }
         }
@@ -216,7 +216,7 @@ public class HttpClientCompatibilityTest {
                 } else {
                     logResult(TestResult.NOK, httpGetSecret, "(status " + code + ")");
                 }
-            } catch (final Exception ex) {
+            } catch (Exception ex) {
                 logResult(TestResult.NOK, httpGetSecret, "(" + ex.getMessage() + ")");
             }
         }
@@ -238,7 +238,7 @@ public class HttpClientCompatibilityTest {
                 } else {
                     logResult(TestResult.NOK, httpGetSecret, "(status " + code + ")");
                 }
-            } catch (final Exception ex) {
+            } catch (Exception ex) {
                 logResult(TestResult.NOK, httpGetSecret, "(" + ex.getMessage() + ")");
             }
         }
@@ -261,7 +261,7 @@ public class HttpClientCompatibilityTest {
                 } else {
                     logResult(TestResult.NOK, httpGetSecret, "(status " + code + ")");
                 }
-            } catch (final Exception ex) {
+            } catch (Exception ex) {
                 logResult(TestResult.NOK, httpGetSecret, "(" + ex.getMessage() + ")");
             }
         }

@@ -34,9 +34,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hc.client5.http.HttpRoute;
-import org.apache.hc.client5.http.classic.ExecChain;
-import org.apache.hc.client5.http.classic.ExecRuntime;
+import org.apache.hc.client5.http.sync.ExecRuntime;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
+import org.apache.hc.client5.http.sync.ExecChain;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.message.BasicClassicHttpRequest;
@@ -164,7 +164,7 @@ public class TestExponentialBackingOffSchedulingStrategy {
         final HttpRoute route = new HttpRoute(host);
         final ClassicHttpRequest request = new BasicClassicHttpRequest("GET", "/");
         final HttpClientContext context = new HttpClientContext();
-        final ExecChain.Scope scope = new ExecChain.Scope("test", route, request, mock(ExecRuntime.class), context);
+        final ExecChain.Scope scope = new ExecChain.Scope(route, request, mock(ExecRuntime.class), context);
         return new AsynchronousValidationRequest(mockValidator, cachingHttpClient, host, request,
                 scope, mock(ExecChain.class), null, "identifier", errorCount);
     }

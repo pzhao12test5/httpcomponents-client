@@ -29,7 +29,6 @@ package org.apache.hc.client5.http.impl.auth;
 import org.apache.hc.client5.http.DnsResolver;
 import org.apache.hc.client5.http.auth.AuthScheme;
 import org.apache.hc.client5.http.auth.AuthSchemeProvider;
-import org.apache.hc.client5.http.auth.KerberosConfig;
 import org.apache.hc.core5.annotation.Contract;
 import org.apache.hc.core5.annotation.ThreadingBehavior;
 import org.apache.hc.core5.http.protocol.HttpContext;
@@ -43,21 +42,23 @@ import org.apache.hc.core5.http.protocol.HttpContext;
 @Contract(threading = ThreadingBehavior.IMMUTABLE)
 public class SPNegoSchemeFactory implements AuthSchemeProvider {
 
-    private final KerberosConfig config;
     private final DnsResolver dnsResolver;
+    private final boolean stripPort;
+    private final boolean useCanonicalHostname;
 
     /**
-     * @since 5.0
+     * @since 4.4
      */
-    public SPNegoSchemeFactory(final KerberosConfig config, final DnsResolver dnsResolver) {
+    public SPNegoSchemeFactory(final DnsResolver dnsResolver, final boolean stripPort, final boolean useCanonicalHostname) {
         super();
-        this.config = config;
         this.dnsResolver = dnsResolver;
+        this.stripPort = stripPort;
+        this.useCanonicalHostname = useCanonicalHostname;
     }
 
     @Override
     public AuthScheme create(final HttpContext context) {
-        return new SPNegoScheme(this.config, this.dnsResolver);
+        return new SPNegoScheme(this.dnsResolver, this.stripPort, this.useCanonicalHostname);
     }
 
 }

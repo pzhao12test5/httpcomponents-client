@@ -48,6 +48,8 @@ public class TestMultipartContentBody {
         Assert.assertEquals("text", b1.getMediaType());
         Assert.assertEquals("plain", b1.getSubType());
 
+        Assert.assertEquals(MIME.ENC_8BIT, b1.getTransferEncoding());
+
         final StringBody b2 = new StringBody("more text",
                 ContentType.create("text/other", StandardCharsets.ISO_8859_1));
         Assert.assertEquals(9, b2.getContentLength());
@@ -57,6 +59,18 @@ public class TestMultipartContentBody {
         Assert.assertEquals("text/other", b2.getMimeType());
         Assert.assertEquals("text", b2.getMediaType());
         Assert.assertEquals("other", b2.getSubType());
+
+        Assert.assertEquals(MIME.ENC_8BIT, b2.getTransferEncoding());
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testStringBodyInvalidConstruction1() throws Exception {
+        Assert.assertNotNull(new StringBody(null, ContentType.DEFAULT_TEXT)); // avoid unused warning
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void testStringBodyInvalidConstruction2() throws Exception {
+        Assert.assertNotNull(new StringBody("stuff", null)); // avoid unused warning
     }
 
     @Test
@@ -71,6 +85,8 @@ public class TestMultipartContentBody {
         Assert.assertEquals("application", b1.getMediaType());
         Assert.assertEquals("octet-stream", b1.getSubType());
 
+        Assert.assertEquals(MIME.ENC_BINARY, b1.getTransferEncoding());
+
         final InputStreamBody b2 = new InputStreamBody(
                 new ByteArrayInputStream(stuff), ContentType.create("some/stuff"), "stuff");
         Assert.assertEquals(-1, b2.getContentLength());
@@ -79,6 +95,8 @@ public class TestMultipartContentBody {
         Assert.assertEquals("some/stuff", b2.getMimeType());
         Assert.assertEquals("some", b2.getMediaType());
         Assert.assertEquals("stuff", b2.getSubType());
+
+        Assert.assertEquals(MIME.ENC_BINARY, b2.getTransferEncoding());
     }
 
 }

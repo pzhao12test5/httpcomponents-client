@@ -33,7 +33,7 @@ package org.apache.hc.client5.http.impl.cache.memcached;
  * Primarily useful for namespacing a shared memcached cluster, for
  * example.
  */
-public final class PrefixKeyHashingScheme implements KeyHashingScheme {
+public class PrefixKeyHashingScheme implements KeyHashingScheme {
 
     private final String prefix;
     private final KeyHashingScheme backingScheme;

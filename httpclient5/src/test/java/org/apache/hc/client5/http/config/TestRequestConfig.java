@@ -27,12 +27,12 @@
 
 package org.apache.hc.client5.http.config;
 
+import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.util.TimeValue;
-import org.apache.hc.core5.util.Timeout;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -47,14 +47,16 @@ public class TestRequestConfig {
     @Test
     public void testDefaults() {
         final RequestConfig config = RequestConfig.DEFAULT;
-        Assert.assertEquals(Timeout.ofMinutes(3), config.getConnectionTimeout());
-        Assert.assertEquals(Timeout.ofMinutes(3), config.getConnectionRequestTimeout());
+        Assert.assertEquals(TimeValue.NEG_ONE_MILLISECONDS, config.getSocketTimeout());
+        Assert.assertEquals(TimeValue.ofMinutes(3), config.getConnectTimeout());
+        Assert.assertEquals(TimeValue.ofMinutes(3), config.getConnectionRequestTimeout());
         Assert.assertEquals(false, config.isExpectContinueEnabled());
         Assert.assertEquals(true, config.isAuthenticationEnabled());
         Assert.assertEquals(true, config.isRedirectsEnabled());
         Assert.assertEquals(false, config.isCircularRedirectsAllowed());
         Assert.assertEquals(50, config.getMaxRedirects());
         Assert.assertEquals(null, config.getCookieSpec());
+        Assert.assertEquals(null, config.getLocalAddress());
         Assert.assertEquals(null, config.getProxy());
         Assert.assertEquals(null, config.getTargetPreferredAuthSchemes());
         Assert.assertEquals(null, config.getProxyPreferredAuthSchemes());
@@ -64,6 +66,7 @@ public class TestRequestConfig {
     @Test
     public void testBuildAndCopy() throws Exception {
         final RequestConfig config0 = RequestConfig.custom()
+                .setSocketTimeout(22, TimeUnit.MILLISECONDS)
                 .setConnectTimeout(33, TimeUnit.MILLISECONDS)
                 .setConnectionRequestTimeout(44, TimeUnit.MILLISECONDS)
                 .setExpectContinueEnabled(true)
@@ -72,13 +75,15 @@ public class TestRequestConfig {
                 .setCircularRedirectsAllowed(true)
                 .setMaxRedirects(100)
                 .setCookieSpec(CookieSpecs.STANDARD)
+                .setLocalAddress(InetAddress.getLocalHost())
                 .setProxy(new HttpHost("someproxy"))
                 .setTargetPreferredAuthSchemes(Arrays.asList(AuthSchemes.NTLM))
                 .setProxyPreferredAuthSchemes(Arrays.asList(AuthSchemes.DIGEST))
                 .setContentCompressionEnabled(false)
                 .build();
         final RequestConfig config = RequestConfig.copy(config0).build();
-        Assert.assertEquals(TimeValue.ofMillis(33), config.getConnectionTimeout());
+        Assert.assertEquals(TimeValue.ofMillis(22), config.getSocketTimeout());
+        Assert.assertEquals(TimeValue.ofMillis(33), config.getConnectTimeout());
         Assert.assertEquals(TimeValue.ofMillis(44), config.getConnectionRequestTimeout());
         Assert.assertEquals(true, config.isExpectContinueEnabled());
         Assert.assertEquals(false, config.isAuthenticationEnabled());
@@ -86,6 +91,7 @@ public class TestRequestConfig {
         Assert.assertEquals(true, config.isCircularRedirectsAllowed());
         Assert.assertEquals(100, config.getMaxRedirects());
         Assert.assertEquals(CookieSpecs.STANDARD, config.getCookieSpec());
+        Assert.assertEquals(InetAddress.getLocalHost(), config.getLocalAddress());
         Assert.assertEquals(new HttpHost("someproxy"), config.getProxy());
         Assert.assertEquals(Arrays.asList(AuthSchemes.NTLM), config.getTargetPreferredAuthSchemes());
         Assert.assertEquals(Arrays.asList(AuthSchemes.DIGEST), config.getProxyPreferredAuthSchemes());

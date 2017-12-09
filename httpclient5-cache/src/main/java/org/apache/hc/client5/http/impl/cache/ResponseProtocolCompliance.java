@@ -31,14 +31,17 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import org.apache.hc.client5.http.ClientProtocolException;
 import org.apache.hc.client5.http.cache.HeaderConstants;
+import org.apache.hc.client5.http.protocol.ClientProtocolException;
 import org.apache.hc.client5.http.utils.DateUtils;
 import org.apache.hc.core5.annotation.Contract;
 import org.apache.hc.core5.annotation.ThreadingBehavior;
+import org.apache.hc.core5.http.ClassicHttpRequest;
+import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HeaderElement;
 import org.apache.hc.core5.http.HeaderElements;
+import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.HttpResponse;
@@ -69,9 +72,14 @@ class ResponseProtocolCompliance {
      * @throws IOException Bad things happened
      */
     public void ensureProtocolCompliance(
-            final HttpRequest originalRequest,
-            final HttpRequest request,
-            final HttpResponse response) throws IOException {
+            final ClassicHttpRequest originalRequest,
+            final ClassicHttpRequest request,
+            final ClassicHttpResponse response) throws IOException {
+        if (backendResponseMustNotHaveBody(request, response)) {
+            consumeBody(response);
+            response.setEntity(null);
+        }
+
         requestDidNotExpect100ContinueButResponseIsOne(originalRequest, response);
 
         transferEncodingIsNotReturnedTo1_0Client(originalRequest, response);
@@ -87,6 +95,13 @@ class ResponseProtocolCompliance {
         identityIsNotUsedInContentEncoding(response);
 
         warningsWithNonMatchingWarnDatesAreRemoved(response);
+    }
+
+    private void consumeBody(final ClassicHttpResponse response) throws IOException {
+        final HttpEntity body = response.getEntity();
+        if (body != null) {
+            IOUtils.consume(body);
+        }
     }
 
     private void warningsWithNonMatchingWarnDatesAreRemoved(
@@ -165,11 +180,13 @@ class ResponseProtocolCompliance {
     }
 
     private void ensurePartialContentIsNotSentToAClientThatDidNotRequestIt(final HttpRequest request,
-            final HttpResponse response) throws IOException {
+            final ClassicHttpResponse response) throws IOException {
         if (request.getFirstHeader(HeaderConstants.RANGE) != null
                 || response.getCode() != HttpStatus.SC_PARTIAL_CONTENT) {
             return;
         }
+
+        consumeBody(response);
         throw new ClientProtocolException(UNEXPECTED_PARTIAL_CONTENT);
     }
 
@@ -200,8 +217,15 @@ class ResponseProtocolCompliance {
         }
     }
 
+    private boolean backendResponseMustNotHaveBody(final HttpRequest request, final HttpResponse backendResponse) {
+        return HeaderConstants.HEAD_METHOD.equals(request.getMethod())
+                || backendResponse.getCode() == HttpStatus.SC_NO_CONTENT
+                || backendResponse.getCode() == HttpStatus.SC_RESET_CONTENT
+                || backendResponse.getCode() == HttpStatus.SC_NOT_MODIFIED;
+    }
+
     private void requestDidNotExpect100ContinueButResponseIsOne(
-            final HttpRequest originalRequest, final HttpResponse response) throws IOException {
+            final ClassicHttpRequest originalRequest, final ClassicHttpResponse response) throws IOException {
         if (response.getCode() != HttpStatus.SC_CONTINUE) {
             return;
         }
@@ -210,11 +234,12 @@ class ResponseProtocolCompliance {
         if (header != null && header.getValue().equalsIgnoreCase(HeaderElements.CONTINUE)) {
             return;
         }
+        consumeBody(response);
         throw new ClientProtocolException(UNEXPECTED_100_CONTINUE);
     }
 
     private void transferEncodingIsNotReturnedTo1_0Client(
-            final HttpRequest originalRequest, final HttpResponse response) {
+            final ClassicHttpRequest originalRequest, final HttpResponse response) {
         final ProtocolVersion version = originalRequest.getVersion() != null ? originalRequest.getVersion() : HttpVersion.DEFAULT;
         if (version.compareToVersion(HttpVersion.HTTP_1_1) >= 0) {
             return;

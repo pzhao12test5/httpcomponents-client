@@ -87,6 +87,11 @@ public class FileBody extends AbstractContentBody {
     }
 
     @Override
+    public String getTransferEncoding() {
+        return MIME.ENC_BINARY;
+    }
+
+    @Override
     public long getContentLength() {
         return this.file.length();
     }

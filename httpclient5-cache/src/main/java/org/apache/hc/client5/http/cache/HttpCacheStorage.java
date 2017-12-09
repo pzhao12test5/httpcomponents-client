@@ -26,10 +26,12 @@
  */
 package org.apache.hc.client5.http.cache;
 
+import java.io.IOException;
+
 /**
  * New storage backends should implement this {@link HttpCacheStorage}
  * interface. They can then be plugged into the existing caching
- * {@link org.apache.hc.client5.http.classic.HttpClient} implementation.
+ * {@link org.apache.hc.client5.http.sync.HttpClient} implementation.
  *
  * @since 4.1
  */
@@ -39,9 +41,9 @@ public interface HttpCacheStorage {
      * Store a given cache entry under the given key.
      * @param key where in the cache to store the entry
      * @param entry cached response to store
-     * @throws ResourceIOException
+     * @throws IOException
      */
-    void putEntry(String key, HttpCacheEntry entry) throws ResourceIOException;
+    void putEntry(String key, HttpCacheEntry entry) throws IOException;
 
     /**
      * Retrieves the cache entry stored under the given key
@@ -49,17 +51,17 @@ public interface HttpCacheStorage {
      * @param key cache key
      * @return an {@link HttpCacheEntry} or {@code null} if no
      *   entry exists
-     * @throws ResourceIOException
+     * @throws IOException
      */
-    HttpCacheEntry getEntry(String key) throws ResourceIOException;
+    HttpCacheEntry getEntry(String key) throws IOException;
 
     /**
      * Deletes/invalidates/removes any cache entries currently
      * stored under the given key.
      * @param key
-     * @throws ResourceIOException
+     * @throws IOException
      */
-    void removeEntry(String key) throws ResourceIOException;
+    void removeEntry(String key) throws IOException;
 
     /**
      * Atomically applies the given callback to processChallenge an existing cache
@@ -69,10 +71,10 @@ public interface HttpCacheStorage {
      *   {@link HttpCacheUpdateCallback} for details, but roughly the
      *   callback expects to be handed the current entry and will return
      *   the new value for the entry.
-     * @throws ResourceIOException
+     * @throws IOException
      * @throws HttpCacheUpdateException
      */
     void updateEntry(
-            String key, HttpCacheUpdateCallback callback) throws ResourceIOException, HttpCacheUpdateException;
+            String key, HttpCacheUpdateCallback callback) throws IOException, HttpCacheUpdateException;
 
 }

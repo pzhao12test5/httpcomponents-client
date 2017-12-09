@@ -40,9 +40,7 @@ import org.apache.logging.log4j.Logger;
  * digests and hence are always 64-character hexadecimal
  * strings.
  */
-public final class SHA256KeyHashingScheme implements KeyHashingScheme {
-
-    public static final SHA256KeyHashingScheme INSTANCE = new SHA256KeyHashingScheme();
+public class SHA256KeyHashingScheme implements KeyHashingScheme {
 
     private final Logger log = LogManager.getLogger(getClass());
 

@@ -52,7 +52,6 @@ import org.apache.hc.core5.http.nio.DataStreamChannel;
 import org.apache.hc.core5.http.nio.ResponseChannel;
 import org.apache.hc.core5.http.nio.StreamChannel;
 import org.apache.hc.core5.http.nio.entity.AbstractBinAsyncEntityProducer;
-import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.util.Asserts;
 
 /**
@@ -78,8 +77,7 @@ public class AsyncRandomHandler implements AsyncServerExchangeHandler {
     public void handleRequest(
             final HttpRequest request,
             final EntityDetails entityDetails,
-            final ResponseChannel responseChannel,
-            final HttpContext context) throws HttpException, IOException {
+            final ResponseChannel responseChannel) throws HttpException, IOException {
         final String method = request.getMethod();
         if (!"GET".equalsIgnoreCase(method) &&
                 !"HEAD".equalsIgnoreCase(method) &&
@@ -90,7 +88,7 @@ public class AsyncRandomHandler implements AsyncServerExchangeHandler {
         final URI uri;
         try {
             uri = request.getUri();
-        } catch (final URISyntaxException ex) {
+        } catch (URISyntaxException ex) {
             throw new ProtocolException(ex.getMessage(), ex);
         }
         final String path = uri.getPath();
@@ -173,12 +171,6 @@ public class AsyncRandomHandler implements AsyncServerExchangeHandler {
 
         @Override
         public void releaseResources() {
-            remaining = length;
-        }
-
-        @Override
-        public boolean isRepeatable() {
-            return true;
         }
 
         @Override

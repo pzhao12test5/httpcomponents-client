@@ -26,51 +26,31 @@
  */
 package org.apache.hc.client5.http.impl.cache;
 
-import java.io.ByteArrayInputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.SequenceInputStream;
-import java.util.List;
-import java.util.Set;
 
-import org.apache.hc.core5.function.Supplier;
-import org.apache.hc.core5.http.Header;
-import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.client5.http.cache.Resource;
+import org.apache.hc.core5.http.io.entity.AbstractHttpEntity;
 import org.apache.hc.core5.util.Args;
-import org.apache.hc.core5.util.ByteArrayBuffer;
 
-class CombinedEntity implements HttpEntity {
+class CombinedEntity extends AbstractHttpEntity {
 
-    private final HttpEntity entity;
+    private final Resource resource;
     private final InputStream combinedStream;
 
-    CombinedEntity(final HttpEntity entity, final ByteArrayBuffer buf) throws IOException {
+    CombinedEntity(final Resource resource, final InputStream instream) throws IOException {
         super();
-        this.entity = entity;
+        this.resource = resource;
         this.combinedStream = new SequenceInputStream(
-                new ByteArrayInputStream(buf.array(), 0, buf.length()),
-                entity.getContent());
+                new ResourceStream(resource.getInputStream()), instream);
     }
 
     @Override
     public long getContentLength() {
         return -1;
-    }
-
-    @Override
-    public String getContentType() {
-        return entity.getContentType();
-    }
-
-    @Override
-    public String getContentEncoding() {
-        return entity.getContentEncoding();
-    }
-
-    @Override
-    public boolean isChunked() {
-        return true;
     }
 
     @Override
@@ -89,16 +69,6 @@ class CombinedEntity implements HttpEntity {
     }
 
     @Override
-    public Set<String> getTrailerNames() {
-        return entity.getTrailerNames();
-    }
-
-    @Override
-    public Supplier<List<? extends Header>> getTrailers() {
-        return entity.getTrailers();
-    }
-
-    @Override
     public void writeTo(final OutputStream outstream) throws IOException {
         Args.notNull(outstream, "Output stream");
         try (InputStream instream = getContent()) {
@@ -112,11 +82,28 @@ class CombinedEntity implements HttpEntity {
 
     @Override
     public void close() throws IOException {
-        try {
-            combinedStream.close();
-        } finally {
-            entity.close();
+        dispose();
+    }
+
+    private void dispose() {
+        this.resource.dispose();
+    }
+
+    class ResourceStream extends FilterInputStream {
+
+        protected ResourceStream(final InputStream in) {
+            super(in);
         }
+
+        @Override
+        public void close() throws IOException {
+            try {
+                super.close();
+            } finally {
+                dispose();
+            }
+        }
+
     }
 
 }

@@ -31,9 +31,12 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 
@@ -45,6 +48,8 @@ import javax.net.ssl.SSLEngineResult.Status;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.hc.client5.http.auth.AuthChallenge;
@@ -55,10 +60,10 @@ import org.apache.hc.client5.http.auth.Credentials;
 import org.apache.hc.client5.http.auth.CredentialsProvider;
 import org.apache.hc.client5.http.auth.MalformedChallengeException;
 import org.apache.hc.client5.http.auth.NTCredentials;
-import org.apache.hc.core5.annotation.Experimental;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.protocol.HttpContext;
+import org.apache.hc.core5.ssl.SSLContexts;
 import org.apache.hc.core5.util.Args;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -77,7 +82,6 @@ import org.apache.logging.log4j.Logger;
  * The implementation was inspired by Python CredSSP and NTLM implementation by Jordan Borean.
  * </p>
  */
-@Experimental
 public class CredSspScheme implements AuthScheme
 {
     private static final Charset UNICODE_LITTLE_UNMARKED = Charset.forName( "UnicodeLittleUnmarked" );
@@ -112,7 +116,6 @@ public class CredSspScheme implements AuthScheme
         CREDENTIALS_SENT;
     }
 
-    private final SSLContext sslContext;
     private State state;
     private SSLEngine sslEngine;
     private NTCredentials ntcredentials;
@@ -125,8 +128,7 @@ public class CredSspScheme implements AuthScheme
     private byte[] peerPublicKey;
 
 
-    public CredSspScheme(final SSLContext sslContext) {
-        this.sslContext = Args.notNull(sslContext, "SSL context");
+    public CredSspScheme() {
         state = State.UNINITIATED;
     }
 
@@ -164,6 +166,53 @@ public class CredSspScheme implements AuthScheme
 
     private SSLEngine createSSLEngine()
     {
+        final SSLContext sslContext;
+        try
+        {
+            sslContext = SSLContexts.custom().build();
+        }
+        catch ( NoSuchAlgorithmException | KeyManagementException e )
+        {
+            throw new RuntimeException( "Error creating SSL Context: " + e.getMessage(), e );
+        }
+
+        final X509TrustManager tm = new X509TrustManager()
+        {
+
+            @Override
+            public void checkClientTrusted( final X509Certificate[] chain, final String authType )
+                throws CertificateException
+            {
+                // Nothing to do.
+            }
+
+
+            @Override
+            public void checkServerTrusted( final X509Certificate[] chain, final String authType )
+                throws CertificateException
+            {
+                // Nothing to do, accept all. CredSSP server is using its own certificate without any
+                // binding to the PKI trust chains. The public key is verified as part of the CredSSP
+                // protocol exchange.
+            }
+
+
+            @Override
+            public X509Certificate[] getAcceptedIssuers()
+            {
+                return null;
+            }
+
+        };
+        try
+        {
+            sslContext.init( null, new TrustManager[]
+                { tm }, null );
+        }
+        catch ( final KeyManagementException e )
+        {
+            throw new RuntimeException( "SSL Context initialization error: " + e.getMessage(), e );
+        }
         final SSLEngine sslEngine = sslContext.createSSLEngine();
         sslEngine.setUseClientMode( true );
         return sslEngine;
@@ -959,34 +1008,20 @@ public class CredSspScheme implements AuthScheme
         }
 
 
-        public static void dump( final StringBuilder sb, final byte[] bytes )
-        {
-            if ( bytes == null )
-            {
-                sb.append( "null" );
-                return;
-            }
-            for ( final byte b : bytes )
-            {
-                sb.append( String.format( "%02X ", b ) );
-            }
-        }
-
-
         public String debugDump()
         {
             final StringBuilder sb = new StringBuilder( "TsRequest\n" );
             sb.append( "  negoToken:\n" );
             sb.append( "    " );
-            dump( sb, negoToken );
+            DebugUtil.dump( sb, negoToken );
             sb.append( "\n" );
             sb.append( "  authInfo:\n" );
             sb.append( "    " );
-            dump( sb, authInfo );
+            DebugUtil.dump( sb, authInfo );
             sb.append( "\n" );
             sb.append( "  pubKeyAuth:\n" );
             sb.append( "    " );
-            dump( sb, pubKeyAuth );
+            DebugUtil.dump( sb, pubKeyAuth );
             return sb.toString();
         }
 

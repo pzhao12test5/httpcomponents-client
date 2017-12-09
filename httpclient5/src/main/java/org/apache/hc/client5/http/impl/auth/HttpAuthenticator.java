@@ -34,16 +34,16 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Queue;
 
-import org.apache.hc.client5.http.AuthenticationStrategy;
 import org.apache.hc.client5.http.auth.AuthCache;
 import org.apache.hc.client5.http.auth.AuthChallenge;
 import org.apache.hc.client5.http.auth.AuthExchange;
 import org.apache.hc.client5.http.auth.AuthScheme;
-import org.apache.hc.client5.http.auth.AuthStateCacheable;
 import org.apache.hc.client5.http.auth.AuthenticationException;
 import org.apache.hc.client5.http.auth.ChallengeType;
 import org.apache.hc.client5.http.auth.CredentialsProvider;
 import org.apache.hc.client5.http.auth.MalformedChallengeException;
+import org.apache.hc.client5.http.config.AuthSchemes;
+import org.apache.hc.client5.http.protocol.AuthenticationStrategy;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
 import org.apache.hc.core5.http.FormattedHeader;
 import org.apache.hc.core5.http.Header;
@@ -234,7 +234,7 @@ public class HttpAuthenticator {
                 if (authScheme.isResponseReady(host, credsProvider, context)) {
                     authOptions.add(authScheme);
                 }
-            } catch (final AuthenticationException | MalformedChallengeException ex) {
+            } catch (AuthenticationException | MalformedChallengeException ex) {
                 if (this.log.isWarnEnabled()) {
                     this.log.warn(ex.getMessage());
                 }
@@ -314,9 +314,14 @@ public class HttpAuthenticator {
         }
     }
 
+    private boolean isCachable(final AuthScheme authScheme) {
+        final String schemeName = authScheme.getName();
+        return schemeName.equalsIgnoreCase(AuthSchemes.BASIC) ||
+                schemeName.equalsIgnoreCase(AuthSchemes.DIGEST);
+    }
+
     private void updateCache(final HttpHost host, final AuthScheme authScheme, final HttpClientContext clientContext) {
-        final boolean cachable = authScheme.getClass().getAnnotation(AuthStateCacheable.class) != null;
-        if (cachable) {
+        if (isCachable(authScheme)) {
             AuthCache authCache = clientContext.getAuthCache();
             if (authCache == null) {
                 authCache = new BasicAuthCache();

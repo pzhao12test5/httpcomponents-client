@@ -41,7 +41,6 @@ import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.http.io.entity.InputStreamEntity;
 import org.apache.hc.core5.http.message.BasicClassicHttpRequest;
-import org.junit.Ignore;
 import org.junit.Test;
 
 /**
@@ -323,7 +322,7 @@ public class TestRFC5861Compliance extends AbstractProtocolTest {
      *
      * http://tools.ietf.org/html/rfc5861
      */
-    @Test @Ignore
+    @Test
     public void testStaleWhileRevalidateReturnsStaleEntryWithWarning()
         throws Exception {
         config = CacheConfig.custom()
@@ -332,7 +331,7 @@ public class TestRFC5861Compliance extends AbstractProtocolTest {
                 .setAsynchronousWorkersMax(1)
                 .build();
 
-        impl = new CachingExec(cache, config);
+        impl = new CachingExec(cache, config, new AsynchronousValidator(config));
 
         final ClassicHttpRequest req1 = new BasicClassicHttpRequest("GET", "/");
         final ClassicHttpResponse resp1 = HttpTestUtils.make200Response();
@@ -366,16 +365,16 @@ public class TestRFC5861Compliance extends AbstractProtocolTest {
 
     @Test
     public void testHTTPCLIENT1470() {
-        impl = new CachingExec(cache, null);
+        impl = new CachingExec(cache, null, new AsynchronousValidator(config));
     }
 
-    @Test @Ignore
+    @Test
     public void testStaleWhileRevalidateReturnsStaleNonRevalidatableEntryWithWarning()
         throws Exception {
         config = CacheConfig.custom().setMaxCacheEntries(MAX_ENTRIES).setMaxObjectSize(MAX_BYTES)
             .setAsynchronousWorkersMax(1).build();
 
-        impl = new CachingExec(cache, config);
+        impl = new CachingExec(cache, config, new AsynchronousValidator(config));
 
         final ClassicHttpRequest req1 = new BasicClassicHttpRequest("GET", "/");
         final ClassicHttpResponse resp1 = HttpTestUtils.make200Response();
@@ -406,7 +405,7 @@ public class TestRFC5861Compliance extends AbstractProtocolTest {
         assertTrue(warning110Found);
     }
 
-    @Test @Ignore
+    @Test
     public void testCanAlsoServeStale304sWhileRevalidating()
         throws Exception {
 
@@ -416,7 +415,7 @@ public class TestRFC5861Compliance extends AbstractProtocolTest {
                 .setAsynchronousWorkersMax(1)
                 .setSharedCache(false)
                 .build();
-        impl = new CachingExec(cache, config);
+        impl = new CachingExec(cache, config, new AsynchronousValidator(config));
 
         final ClassicHttpRequest req1 = new BasicClassicHttpRequest("GET", "/");
         final ClassicHttpResponse resp1 = HttpTestUtils.make200Response();

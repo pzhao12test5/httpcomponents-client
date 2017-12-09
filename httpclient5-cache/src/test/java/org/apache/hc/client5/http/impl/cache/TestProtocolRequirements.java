@@ -35,10 +35,10 @@ import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.hc.client5.http.ClientProtocolException;
 import org.apache.hc.client5.http.HttpRoute;
 import org.apache.hc.client5.http.cache.HttpCacheEntry;
-import org.apache.hc.client5.http.classic.ExecChain;
+import org.apache.hc.client5.http.protocol.ClientProtocolException;
+import org.apache.hc.client5.http.sync.ExecChain;
 import org.apache.hc.client5.http.utils.DateUtils;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
@@ -56,7 +56,6 @@ import org.apache.hc.core5.http.message.BasicClassicHttpRequest;
 import org.apache.hc.core5.http.message.BasicClassicHttpResponse;
 import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.hc.core5.http.message.MessageSupport;
-import org.apache.hc.core5.util.ByteArrayBuffer;
 import org.easymock.Capture;
 import org.easymock.EasyMock;
 import org.junit.Assert;
@@ -642,6 +641,39 @@ public class TestProtocolRequirements extends AbstractProtocolTest {
     }
 
     /*
+     * "A client MUST NOT send an Expect request-header field (section 14.20)
+     * with the '100-continue' expectation if it does not intend to send a
+     * request body."
+     *
+     * http://www.w3.org/Protocols/rfc2616/rfc2616-sec8.html#sec8.2.3
+     */
+    @Test
+    public void testExpect100ContinueIsNotSentIfThereIsNoRequestBody() throws Exception {
+        request.addHeader("Expect", "100-continue");
+        final Capture<ClassicHttpRequest> reqCap = new Capture<>();
+        EasyMock.expect(
+                mockExecChain.proceed(
+                        EasyMock.capture(reqCap),
+                        EasyMock.isA(ExecChain.Scope.class))).andReturn(originResponse);
+
+        replayMocks();
+        execute(request);
+        verifyMocks();
+        final ClassicHttpRequest forwarded = reqCap.getValue();
+        boolean foundExpectContinue = false;
+
+        final Iterator<HeaderElement> it = MessageSupport.iterate(forwarded, HttpHeaders.EXPECT);
+        while (it.hasNext()) {
+            final HeaderElement elt = it.next();
+            if ("100-continue".equalsIgnoreCase(elt.getName())) {
+                foundExpectContinue = true;
+                break;
+            }
+        }
+        Assert.assertFalse(foundExpectContinue);
+    }
+
+    /*
      * "If a proxy receives a request that includes an Expect request- header
      * field with the '100-continue' expectation, and the proxy either knows
      * that the next-hop server complies with HTTP/1.1 or higher, or does not
@@ -998,6 +1030,32 @@ public class TestProtocolRequirements extends AbstractProtocolTest {
     }
 
     /*
+     * "A TRACE request MUST NOT include an entity."
+     *
+     * http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.8
+     */
+    @Test
+    public void testForwardedTRACERequestsDoNotIncludeAnEntity() throws Exception {
+        final BasicClassicHttpRequest trace = new BasicClassicHttpRequest("TRACE", "/");
+        trace.setEntity(HttpTestUtils.makeBody(entityLength));
+        trace.setHeader("Content-Length", Integer.toString(entityLength));
+
+        final Capture<ClassicHttpRequest> reqCap = new Capture<>();
+
+        EasyMock.expect(
+                mockExecChain.proceed(
+                        EasyMock.capture(reqCap),
+                        EasyMock.isA(ExecChain.Scope.class))).andReturn(originResponse);
+
+        replayMocks();
+        execute(trace);
+        verifyMocks();
+
+        final ClassicHttpRequest bodyReq = reqCap.getValue();
+        Assert.assertTrue(bodyReq.getEntity() == null || bodyReq.getEntity().getContentLength() == 0);
+    }
+
+    /*
      * "9.8 TRACE ... Responses to this method MUST NOT be cached."
      *
      * http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.8
@@ -1042,6 +1100,32 @@ public class TestProtocolRequirements extends AbstractProtocolTest {
         final ClassicHttpResponse result = execute(request);
 
         verifyMocks();
+
+        Assert.assertTrue(result.getEntity() == null || result.getEntity().getContentLength() == 0);
+    }
+
+    /*
+     * "10.2.6 205 Reset Content ... The response MUST NOT include an entity."
+     *
+     * http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.2.6
+     */
+    @Test
+    public void test205ResponsesDoNotContainMessageBodies() throws Exception {
+        originResponse = new BasicClassicHttpResponse(HttpStatus.SC_RESET_CONTENT, "Reset Content");
+        originResponse.setEntity(HttpTestUtils.makeBody(entityLength));
+
+        EasyMock.expect(
+                mockExecChain.proceed(
+                        EasyMock.isA(ClassicHttpRequest.class),
+                        EasyMock.isA(ExecChain.Scope.class))).andReturn(originResponse);
+
+        replayMocks();
+
+        final ClassicHttpResponse result = execute(request);
+
+        verifyMocks();
+
+        Assert.assertTrue(result.getEntity() == null || result.getEntity().getContentLength() == 0);
     }
 
     /*
@@ -1619,6 +1703,8 @@ public class TestProtocolRequirements extends AbstractProtocolTest {
         final ClassicHttpResponse result = execute(request);
 
         verifyMocks();
+
+        Assert.assertTrue(result.getEntity() == null || result.getEntity().getContentLength() == 0);
     }
 
     /*
@@ -2177,6 +2263,8 @@ public class TestProtocolRequirements extends AbstractProtocolTest {
         notModified.setHeader("Date", DateUtils.formatDate(now));
         notModified.setHeader("ETag", "\"etag\"");
 
+        mockCache.flushInvalidatedCacheEntriesFor(EasyMock.eq(host),
+                eqRequest(request));
         EasyMock.expect(
                 mockCache.getCacheEntry(EasyMock.eq(host), eqRequest(request)))
                 .andReturn(entry);
@@ -2220,6 +2308,7 @@ public class TestProtocolRequirements extends AbstractProtocolTest {
         impl = new CachingExec(mockCache, config);
         request = new BasicClassicHttpRequest("GET", "/thing");
 
+        mockCache.flushInvalidatedCacheEntriesFor(EasyMock.eq(host), eqRequest(request));
         EasyMock.expect(mockCache.getCacheEntry(EasyMock.eq(host), eqRequest(request))).andReturn(entry);
 
         replayMocks();
@@ -2266,6 +2355,7 @@ public class TestProtocolRequirements extends AbstractProtocolTest {
         impl = new CachingExec(mockCache, config);
         request = new BasicClassicHttpRequest("GET", "/thing");
 
+        mockCache.flushInvalidatedCacheEntriesFor(EasyMock.eq(host), eqRequest(request));
         EasyMock.expect(mockCache.getCacheEntry(EasyMock.eq(host), eqRequest(request))).andReturn(entry);
         EasyMock.expect(
                 mockExecChain.proceed(
@@ -2474,6 +2564,7 @@ public class TestProtocolRequirements extends AbstractProtocolTest {
         impl = new CachingExec(mockCache, config);
         request = new BasicClassicHttpRequest("GET", "/thing");
 
+        mockCache.flushInvalidatedCacheEntriesFor(EasyMock.eq(host), eqRequest(request));
         EasyMock.expect(mockCache.getCacheEntry(EasyMock.eq(host), eqRequest(request))).andReturn(entry);
 
         replayMocks();
@@ -2531,10 +2622,11 @@ public class TestProtocolRequirements extends AbstractProtocolTest {
         validated.setHeader("Content-Length", "128");
         validated.setEntity(new ByteArrayEntity(bytes));
 
-        final HttpCacheEntry cacheEntry = HttpTestUtils.makeCacheEntry();
+        final ClassicHttpResponse reconstructed = HttpTestUtils.make200Response();
 
         final Capture<ClassicHttpRequest> cap = new Capture<>();
 
+        mockCache.flushInvalidatedCacheEntriesFor(EasyMock.eq(host), eqRequest(request));
         mockCache.flushInvalidatedCacheEntriesFor(
                 EasyMock.isA(HttpHost.class),
                 EasyMock.isA(ClassicHttpRequest.class),
@@ -2547,13 +2639,12 @@ public class TestProtocolRequirements extends AbstractProtocolTest {
         EasyMock.expect(mockCache.getCacheEntry(
                 EasyMock.isA(HttpHost.class),
                 EasyMock.isA(ClassicHttpRequest.class))).andReturn(entry).times(0, 1);
-        EasyMock.expect(mockCache.createCacheEntry(
+        EasyMock.expect(mockCache.cacheAndReturnResponse(
                 EasyMock.isA(HttpHost.class),
                 EasyMock.isA(ClassicHttpRequest.class),
                 eqCloseableResponse(validated),
-                EasyMock.isA(ByteArrayBuffer.class),
                 EasyMock.isA(Date.class),
-                EasyMock.isA(Date.class))).andReturn(cacheEntry).times(0, 1);
+                EasyMock.isA(Date.class))).andReturn(reconstructed).times(0, 1);
 
         replayMocks();
         final ClassicHttpResponse result = execute(request);
@@ -4142,6 +4233,38 @@ public class TestProtocolRequirements extends AbstractProtocolTest {
             if (uncondCap.hasCaptured()) {
                 Assert.assertTrue(HttpTestUtils.semanticallyTransparent(resp200, result));
             }
+        }
+    }
+
+    /* "A cache that receives an incomplete response (for example,
+     * with fewer bytes of data than specified in a Content-Length
+     * header) MAY store the response. However, the cache MUST treat
+     * this as a partial response. Partial responses MAY be combined
+     * as described in section 13.5.4; the result might be a full
+     * response or might still be partial. A cache MUST NOT return a
+     * partial response to a client without explicitly marking it as
+     * such, using the 206 (Partial Content) status code. A cache MUST
+     * NOT return a partial response using a status code of 200 (OK)."
+     *
+     * http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html#sec13.8
+     */
+    @Test
+    public void testIncompleteResponseMustNotBeReturnedToClientWithoutMarkingItAs206() throws Exception {
+        originResponse.setEntity(HttpTestUtils.makeBody(128));
+        originResponse.setHeader("Content-Length","256");
+
+        backendExpectsAnyRequest().andReturn(originResponse);
+
+        replayMocks();
+        final ClassicHttpResponse result = execute(request);
+        verifyMocks();
+
+        final int status = result.getCode();
+        Assert.assertFalse(HttpStatus.SC_OK == status);
+        if (status > 200 && status <= 299
+            && HttpTestUtils.equivalent(originResponse.getEntity(),
+                                        result.getEntity())) {
+            Assert.assertTrue(HttpStatus.SC_PARTIAL_CONTENT == status);
         }
     }
 

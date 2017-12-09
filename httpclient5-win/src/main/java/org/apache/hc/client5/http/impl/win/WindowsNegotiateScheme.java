@@ -114,6 +114,12 @@ public class WindowsNegotiateScheme implements AuthScheme {
     }
 
     @Override
+    public void finalize() throws Throwable {
+        dispose();
+        super.finalize();
+    }
+
+    @Override
     public String getName() {
         return scheme;
     }

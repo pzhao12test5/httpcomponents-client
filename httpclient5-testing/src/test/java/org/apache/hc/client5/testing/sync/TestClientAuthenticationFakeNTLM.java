@@ -30,10 +30,10 @@ import java.io.IOException;
 
 import org.apache.hc.client5.http.auth.AuthScope;
 import org.apache.hc.client5.http.auth.NTCredentials;
-import org.apache.hc.client5.http.classic.methods.HttpGet;
-import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.sync.BasicCredentialsProvider;
+import org.apache.hc.client5.http.impl.sync.HttpClients;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
+import org.apache.hc.client5.http.sync.methods.HttpGet;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.HttpException;
@@ -66,12 +66,12 @@ public class TestClientAuthenticationFakeNTLM extends LocalServerTestBase {
 
     @Test
     public void testNTLMAuthenticationFailure() throws Exception {
-        this.server.registerHandler("*", new NtlmResponseHandler());
+        this.serverBootstrap.registerHandler("*", new NtlmResponseHandler());
 
         final HttpHost target = start();
 
         final BasicCredentialsProvider credsProvider = new BasicCredentialsProvider();
-        credsProvider.setCredentials(new AuthScope(null, null, -1, null ,null),
+        credsProvider.setCredentials(AuthScope.ANY,
                 new NTCredentials("test", "test".toCharArray(), null, null));
 
         this.httpclient = HttpClients.custom()
@@ -112,13 +112,13 @@ public class TestClientAuthenticationFakeNTLM extends LocalServerTestBase {
 
     @Test
     public void testNTLMv1Type2Message() throws Exception {
-        this.server.registerHandler("*", new NtlmType2MessageResponseHandler("TlRMTVNTUAACAA" +
+        this.serverBootstrap.registerHandler("*", new NtlmType2MessageResponseHandler("TlRMTVNTUAACAA" +
                 "AADAAMADgAAAAzggLiASNFZ4mrze8AAAAAAAAAAAAAAAAAAAAABgBwFwAAAA9T" +
                 "AGUAcgB2AGUAcgA="));
         final HttpHost target = start();
 
         final BasicCredentialsProvider credsProvider = new BasicCredentialsProvider();
-        credsProvider.setCredentials(new AuthScope(null, null, -1, null ,null),
+        credsProvider.setCredentials(AuthScope.ANY,
                 new NTCredentials("test", "test".toCharArray(), null, null));
 
         this.httpclient = HttpClients.custom()
@@ -136,13 +136,13 @@ public class TestClientAuthenticationFakeNTLM extends LocalServerTestBase {
 
     @Test
     public void testNTLMv2Type2Message() throws Exception {
-        this.server.registerHandler("*", new NtlmType2MessageResponseHandler("TlRMTVNTUAACAA" +
+        this.serverBootstrap.registerHandler("*", new NtlmType2MessageResponseHandler("TlRMTVNTUAACAA" +
                 "AADAAMADgAAAAzgoriASNFZ4mrze8AAAAAAAAAACQAJABEAAAABgBwFwAAAA9T" +
                 "AGUAcgB2AGUAcgACAAwARABvAG0AYQBpAG4AAQAMAFMAZQByAHYAZQByAAAAAAA="));
         final HttpHost target = start();
 
         final BasicCredentialsProvider credsProvider = new BasicCredentialsProvider();
-        credsProvider.setCredentials(new AuthScope(null, null, -1, null ,null),
+        credsProvider.setCredentials(AuthScope.ANY,
                 new NTCredentials("test", "test".toCharArray(), null, null));
 
         this.httpclient = HttpClients.custom()
@@ -179,7 +179,7 @@ public class TestClientAuthenticationFakeNTLM extends LocalServerTestBase {
 
     @Test
     public void testNTLMType2MessageOnlyAuthenticationFailure() throws Exception {
-        this.server.registerHandler("*", new NtlmType2MessageOnlyResponseHandler("TlRMTVNTUAACAA" +
+        this.serverBootstrap.registerHandler("*", new NtlmType2MessageOnlyResponseHandler("TlRMTVNTUAACAA" +
                 "AADAAMADgAAAAzggLiASNFZ4mrze8AAAAAAAAAAAAAAAAAAAAABgBwFwAAAA9T" +
                 "AGUAcgB2AGUAcgA="));
 
@@ -187,7 +187,7 @@ public class TestClientAuthenticationFakeNTLM extends LocalServerTestBase {
 
         final HttpClientContext context = HttpClientContext.create();
         final BasicCredentialsProvider credsProvider = new BasicCredentialsProvider();
-        credsProvider.setCredentials(new AuthScope(null, null, -1, null ,null),
+        credsProvider.setCredentials(AuthScope.ANY,
                 new NTCredentials("test", "test".toCharArray(), null, null));
         context.setCredentialsProvider(credsProvider);
         final HttpGet httpget = new HttpGet("/");
@@ -200,7 +200,7 @@ public class TestClientAuthenticationFakeNTLM extends LocalServerTestBase {
 
     @Test
     public void testNTLMType2NonUnicodeMessageOnlyAuthenticationFailure() throws Exception {
-        this.server.registerHandler("*", new NtlmType2MessageOnlyResponseHandler("TlRMTVNTUAACAA" +
+        this.serverBootstrap.registerHandler("*", new NtlmType2MessageOnlyResponseHandler("TlRMTVNTUAACAA" +
                 "AABgAGADgAAAAyggLiASNFZ4mrze8AAAAAAAAAAAAAAAAAAAAABgBwFwAAAA9T" +
                 "ZXJ2ZXI="));
 
@@ -208,7 +208,7 @@ public class TestClientAuthenticationFakeNTLM extends LocalServerTestBase {
 
         final HttpClientContext context = HttpClientContext.create();
         final BasicCredentialsProvider credsProvider = new BasicCredentialsProvider();
-        credsProvider.setCredentials(new AuthScope(null, null, -1, null ,null),
+        credsProvider.setCredentials(AuthScope.ANY,
                 new NTCredentials("test", "test".toCharArray(), null, null));
         context.setCredentialsProvider(credsProvider);
         final HttpGet httpget = new HttpGet("/");

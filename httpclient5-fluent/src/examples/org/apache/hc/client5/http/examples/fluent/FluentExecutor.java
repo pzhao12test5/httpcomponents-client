@@ -34,7 +34,7 @@ import org.apache.hc.client5.http.fluent.Request;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.HttpVersion;
-import org.apache.hc.core5.util.Timeout;
+import org.apache.hc.core5.util.TimeValue;
 
 /**
  * This example demonstrates how the he HttpClient fluent API can be used to execute multiple
@@ -52,7 +52,9 @@ public class FluentExecutor {
 
         // Execute a GET with timeout settings and return response content as String.
         executor.execute(Request.Get("http://somehost/")
-                .connectionTimeout(Timeout.ofSeconds(1))).returnContent().asString();
+                .connectTimeout(TimeValue.ofSeconds(1))
+                .socketTimeout(TimeValue.ofSeconds(1))
+                ).returnContent().asString();
 
         // Execute a POST with the 'expect-continue' handshake, using HTTP/1.1,
         // containing a request body as String and return response content as byte array.

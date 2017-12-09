@@ -32,7 +32,6 @@ import java.net.Socket;
 
 import javax.net.ssl.SSLSession;
 
-import org.apache.hc.core5.annotation.Internal;
 import org.apache.hc.core5.http.io.HttpClientConnection;
 
 /**
@@ -43,7 +42,6 @@ import org.apache.hc.core5.http.io.HttpClientConnection;
  *
  * @since 4.3
  */
-@Internal
 public interface ManagedHttpClientConnection extends HttpClientConnection {
 
     /**
@@ -71,19 +69,5 @@ public interface ManagedHttpClientConnection extends HttpClientConnection {
      *          {@code null} otherwise
      */
     SSLSession getSSLSession();
-
-    /**
-     * Puts the connection into idle mode.
-     *
-     * @since 5.0
-     */
-    void passivate();
-
-    /**
-     * Restores the connection from idle mode.
-     *
-     * @since 5.0
-     */
-    void activate();
 
 }
