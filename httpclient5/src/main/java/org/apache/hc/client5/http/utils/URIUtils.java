@@ -77,7 +77,7 @@ public class URIUtils {
             uribuilder.setPort(target.getPort());
         } else {
             uribuilder.setScheme(null);
-            uribuilder.setHost((String) null);
+            uribuilder.setHost(null);
             uribuilder.setPort(-1);
         }
         if (dropFragment) {

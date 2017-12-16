@@ -64,7 +64,6 @@ import org.apache.hc.core5.reactor.IOReactorConfig;
 import org.apache.hc.core5.reactor.ListenerEndpoint;
 import org.apache.hc.core5.testing.nio.Http2TestServer;
 import org.apache.hc.core5.util.TimeValue;
-import org.apache.hc.core5.util.Timeout;
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -75,8 +74,6 @@ import org.junit.runners.Parameterized;
 
 @RunWith(Parameterized.class)
 public class TestHttpAsyncMinimal {
-
-    public static final Timeout TIMEOUT = Timeout.ofSeconds(30);
 
     @Parameterized.Parameters(name = "{0} {1}")
     public static Collection<Object[]> protocols() {
@@ -105,9 +102,7 @@ public class TestHttpAsyncMinimal {
         @Override
         protected void before() throws Throwable {
             server = new Http2TestServer(
-                    IOReactorConfig.custom()
-                        .setSoTimeout(TIMEOUT)
-                        .build(),
+                    IOReactorConfig.DEFAULT,
                     scheme == URIScheme.HTTPS ? SSLTestContexts.createServerSSLContext() : null);
             server.register("/echo/*", new Supplier<AsyncServerExchangeHandler>() {
 
@@ -146,7 +141,7 @@ public class TestHttpAsyncMinimal {
                     .setTlsStrategy(new H2TlsStrategy(SSLTestContexts.createClientSSLContext()))
                     .build();
             final IOReactorConfig ioReactorConfig = IOReactorConfig.custom()
-                    .setSoTimeout(TIMEOUT)
+                    .setSoTimeout(5, TimeUnit.SECONDS)
                     .build();
             if (version.greaterEquals(HttpVersion.HTTP_2)) {
                 httpclient = HttpAsyncClients.createMinimal(
@@ -173,10 +168,10 @@ public class TestHttpAsyncMinimal {
         } else {
             server.start(H1Config.DEFAULT);
         }
-        final Future<ListenerEndpoint> endpointFuture = server.listen(new InetSocketAddress(0));
+        final ListenerEndpoint listener = server.listen(new InetSocketAddress(0));
         httpclient.start();
-        final ListenerEndpoint endpoint = endpointFuture.get();
-        final InetSocketAddress address = (InetSocketAddress) endpoint.getAddress();
+        listener.waitFor();
+        final InetSocketAddress address = (InetSocketAddress) listener.getAddress();
         return new HttpHost("localhost", address.getPort(), scheme.name());
     }
 

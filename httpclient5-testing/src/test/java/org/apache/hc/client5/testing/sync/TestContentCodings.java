@@ -41,9 +41,9 @@ import java.util.concurrent.Executors;
 import java.util.zip.Deflater;
 import java.util.zip.GZIPOutputStream;
 
-import org.apache.hc.client5.http.classic.methods.HttpGet;
-import org.apache.hc.client5.http.impl.classic.BasicHttpClientResponseHandler;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.sync.BasicResponseHandler;
+import org.apache.hc.client5.http.impl.sync.CloseableHttpClient;
+import org.apache.hc.client5.http.sync.methods.HttpGet;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.HeaderElement;
@@ -75,7 +75,7 @@ public class TestContentCodings extends LocalServerTestBase {
      */
     @Test
     public void testResponseWithNoContent() throws Exception {
-        this.server.registerHandler("*", new HttpRequestHandler() {
+        this.serverBootstrap.registerHandler("*", new HttpRequestHandler() {
 
             /**
              * {@inheritDoc}
@@ -107,7 +107,7 @@ public class TestContentCodings extends LocalServerTestBase {
     public void testDeflateSupportForServerReturningRfc1950Stream() throws Exception {
         final String entityText = "Hello, this is some plain text coming back.";
 
-        this.server.registerHandler("*", createDeflateEncodingRequestHandler(entityText, false));
+        this.serverBootstrap.registerHandler("*", createDeflateEncodingRequestHandler(entityText, false));
 
         final HttpHost target = start();
 
@@ -127,7 +127,7 @@ public class TestContentCodings extends LocalServerTestBase {
     public void testDeflateSupportForServerReturningRfc1951Stream() throws Exception {
         final String entityText = "Hello, this is some plain text coming back.";
 
-        this.server.registerHandler("*", createDeflateEncodingRequestHandler(entityText, true));
+        this.serverBootstrap.registerHandler("*", createDeflateEncodingRequestHandler(entityText, true));
 
         final HttpHost target = start();
 
@@ -146,7 +146,7 @@ public class TestContentCodings extends LocalServerTestBase {
     public void testGzipSupport() throws Exception {
         final String entityText = "Hello, this is some plain text coming back.";
 
-        this.server.registerHandler("*", createGzipEncodingRequestHandler(entityText));
+        this.serverBootstrap.registerHandler("*", createGzipEncodingRequestHandler(entityText));
 
         final HttpHost target = start();
 
@@ -166,7 +166,7 @@ public class TestContentCodings extends LocalServerTestBase {
     public void testThreadSafetyOfContentCodings() throws Exception {
         final String entityText = "Hello, this is some plain text coming back.";
 
-        this.server.registerHandler("*", createGzipEncodingRequestHandler(entityText));
+        this.serverBootstrap.registerHandler("*", createGzipEncodingRequestHandler(entityText));
 
         /*
          * Create a load of workers which will access the resource. Half will use the default
@@ -212,7 +212,7 @@ public class TestContentCodings extends LocalServerTestBase {
     public void testHttpEntityWriteToForGzip() throws Exception {
         final String entityText = "Hello, this is some plain text coming back.";
 
-        this.server.registerHandler("*", createGzipEncodingRequestHandler(entityText));
+        this.serverBootstrap.registerHandler("*", createGzipEncodingRequestHandler(entityText));
 
         final HttpHost target = start();
 
@@ -229,7 +229,7 @@ public class TestContentCodings extends LocalServerTestBase {
     public void testHttpEntityWriteToForDeflate() throws Exception {
         final String entityText = "Hello, this is some plain text coming back.";
 
-        this.server.registerHandler("*", createDeflateEncodingRequestHandler(entityText, true));
+        this.serverBootstrap.registerHandler("*", createDeflateEncodingRequestHandler(entityText, true));
 
         final HttpHost target = start();
 
@@ -246,12 +246,12 @@ public class TestContentCodings extends LocalServerTestBase {
     public void gzipResponsesWorkWithBasicResponseHandler() throws Exception {
         final String entityText = "Hello, this is some plain text coming back.";
 
-        this.server.registerHandler("*", createGzipEncodingRequestHandler(entityText));
+        this.serverBootstrap.registerHandler("*", createGzipEncodingRequestHandler(entityText));
 
         final HttpHost target = start();
 
         final HttpGet request = new HttpGet("/some-resource");
-        final String response = this.httpclient.execute(target, request, new BasicHttpClientResponseHandler());
+        final String response = this.httpclient.execute(target, request, new BasicResponseHandler());
         Assert.assertEquals("The entity text is correctly transported", entityText, response);
     }
 
@@ -259,12 +259,12 @@ public class TestContentCodings extends LocalServerTestBase {
     public void deflateResponsesWorkWithBasicResponseHandler() throws Exception {
         final String entityText = "Hello, this is some plain text coming back.";
 
-        this.server.registerHandler("*", createDeflateEncodingRequestHandler(entityText, false));
+        this.serverBootstrap.registerHandler("*", createDeflateEncodingRequestHandler(entityText, false));
 
         final HttpHost target = start();
 
         final HttpGet request = new HttpGet("/some-resource");
-        final String response = this.httpclient.execute(target, request, new BasicHttpClientResponseHandler());
+        final String response = this.httpclient.execute(target, request, new BasicResponseHandler());
         Assert.assertEquals("The entity text is correctly transported", entityText, response);
     }
 

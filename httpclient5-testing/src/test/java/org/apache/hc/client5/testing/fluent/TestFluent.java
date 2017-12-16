@@ -31,9 +31,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.Charset;
 
-import org.apache.hc.client5.http.ClientProtocolException;
 import org.apache.hc.client5.http.fluent.Content;
 import org.apache.hc.client5.http.fluent.Request;
+import org.apache.hc.client5.http.protocol.ClientProtocolException;
 import org.apache.hc.client5.testing.sync.LocalServerTestBase;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
@@ -41,8 +41,8 @@ import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpException;
 import org.apache.hc.core5.http.HttpHost;
-import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 import org.apache.hc.core5.http.io.HttpRequestHandler;
+import org.apache.hc.core5.http.io.ResponseHandler;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.http.protocol.HttpContext;
@@ -52,9 +52,10 @@ import org.junit.Test;
 
 public class TestFluent extends LocalServerTestBase {
 
-    @Before
+    @Before @Override
     public void setUp() throws Exception {
-        this.server.registerHandler("/", new HttpRequestHandler() {
+        super.setUp();
+        this.serverBootstrap.registerHandler("/", new HttpRequestHandler() {
 
             @Override
             public void handle(
@@ -65,7 +66,7 @@ public class TestFluent extends LocalServerTestBase {
             }
 
         });
-        this.server.registerHandler("/echo", new HttpRequestHandler() {
+        this.serverBootstrap.registerHandler("/echo", new HttpRequestHandler() {
 
             @Override
             public void handle(
@@ -154,7 +155,7 @@ public class TestFluent extends LocalServerTestBase {
             Request.Get(baseURL + "/").execute().returnContent();
             Request.Get(baseURL + "/").execute().returnResponse();
             Request.Get(baseURL + "/").execute().discardContent();
-            Request.Get(baseURL + "/").execute().handleResponse(new HttpClientResponseHandler<Object>() {
+            Request.Get(baseURL + "/").execute().handleResponse(new ResponseHandler<Object>() {
 
                 @Override
                 public Object handleResponse(

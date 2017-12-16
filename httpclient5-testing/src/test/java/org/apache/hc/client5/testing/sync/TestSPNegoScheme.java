@@ -33,11 +33,11 @@ import org.apache.hc.client5.http.auth.AuthScheme;
 import org.apache.hc.client5.http.auth.AuthSchemeProvider;
 import org.apache.hc.client5.http.auth.AuthScope;
 import org.apache.hc.client5.http.auth.Credentials;
-import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.config.AuthSchemes;
-import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
 import org.apache.hc.client5.http.impl.auth.SPNegoScheme;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.sync.BasicCredentialsProvider;
+import org.apache.hc.client5.http.impl.sync.HttpClients;
+import org.apache.hc.client5.http.sync.methods.HttpGet;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.HttpException;
@@ -149,7 +149,7 @@ public class TestSPNegoScheme extends LocalServerTestBase {
      */
     @Test
     public void testDontTryToAuthenticateEndlessly() throws Exception {
-        this.server.registerHandler("*", new PleaseNegotiateService());
+        this.serverBootstrap.registerHandler("*", new PleaseNegotiateService());
         final HttpHost target = start();
 
         final AuthSchemeProvider nsf = new NegotiateSchemeProviderWithMockGssManager();
@@ -179,7 +179,7 @@ public class TestSPNegoScheme extends LocalServerTestBase {
      */
     @Test
     public void testNoTokenGeneratedError() throws Exception {
-        this.server.registerHandler("*", new PleaseNegotiateService());
+        this.serverBootstrap.registerHandler("*", new PleaseNegotiateService());
         final HttpHost target = start();
 
         final AuthSchemeProvider nsf = new NegotiateSchemeProviderWithMockGssManager();

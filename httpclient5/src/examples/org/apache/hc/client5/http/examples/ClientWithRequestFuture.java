@@ -32,18 +32,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.hc.client5.http.classic.methods.HttpGet;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.FutureRequestExecutionService;
-import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
-import org.apache.hc.client5.http.impl.classic.HttpRequestFutureTask;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.impl.sync.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.sync.FutureRequestExecutionService;
+import org.apache.hc.client5.http.impl.sync.HttpClientBuilder;
+import org.apache.hc.client5.http.impl.sync.HttpRequestFutureTask;
 import org.apache.hc.client5.http.io.HttpClientConnectionManager;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
+import org.apache.hc.client5.http.sync.methods.HttpGet;
 import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.HttpStatus;
-import org.apache.hc.core5.http.io.HttpClientResponseHandler;
+import org.apache.hc.core5.http.io.ResponseHandler;
 
 public class ClientWithRequestFuture {
 
@@ -59,8 +59,8 @@ public class ClientWithRequestFuture {
         final ExecutorService execService = Executors.newFixedThreadPool(5);
         try (FutureRequestExecutionService requestExecService = new FutureRequestExecutionService(
                 httpclient, execService)) {
-            // Because things are asynchronous, you must provide a HttpClientResponseHandler
-            final HttpClientResponseHandler<Boolean> handler = new HttpClientResponseHandler<Boolean>() {
+            // Because things are asynchronous, you must provide a ResponseHandler
+            final ResponseHandler<Boolean> handler = new ResponseHandler<Boolean>() {
                 @Override
                 public Boolean handleResponse(final ClassicHttpResponse response) throws IOException {
                     // simply return true if the status was OK
