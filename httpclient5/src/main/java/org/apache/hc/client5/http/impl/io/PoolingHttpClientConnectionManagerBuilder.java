@@ -28,7 +28,6 @@
 package org.apache.hc.client5.http.impl.io;
 
 import org.apache.hc.client5.http.DnsResolver;
-import org.apache.hc.client5.http.HttpRoute;
 import org.apache.hc.client5.http.SchemePortResolver;
 import org.apache.hc.client5.http.io.ManagedHttpClientConnection;
 import org.apache.hc.client5.http.socket.ConnectionSocketFactory;
@@ -38,8 +37,7 @@ import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
 import org.apache.hc.core5.http.config.RegistryBuilder;
 import org.apache.hc.core5.http.config.SocketConfig;
 import org.apache.hc.core5.http.io.HttpConnectionFactory;
-import org.apache.hc.core5.pool.ConnPoolListener;
-import org.apache.hc.core5.pool.ConnPoolPolicy;
+import org.apache.hc.core5.pool.PoolReusePolicy;
 import org.apache.hc.core5.util.TimeValue;
 
 /**
@@ -74,8 +72,7 @@ public class PoolingHttpClientConnectionManagerBuilder {
     private LayeredConnectionSocketFactory sslSocketFactory;
     private SchemePortResolver schemePortResolver;
     private DnsResolver dnsResolver;
-    private ConnPoolPolicy connPoolPolicy;
-    private ConnPoolListener<HttpRoute> connPoolListener;
+    private PoolReusePolicy poolReusePolicy;
     private SocketConfig defaultSocketConfig;
 
     private boolean systemProperties;
@@ -129,18 +126,10 @@ public class PoolingHttpClientConnectionManagerBuilder {
     }
 
     /**
-     * Assigns {@link ConnPoolPolicy} value.
+     * Assigns {@link PoolReusePolicy} value.
      */
-    public final PoolingHttpClientConnectionManagerBuilder setConnPoolPolicy(final ConnPoolPolicy connPoolPolicy) {
-        this.connPoolPolicy = connPoolPolicy;
-        return this;
-    }
-
-    /**
-     * Assigns {@link ConnPoolListener} instance.
-     */
-    public final PoolingHttpClientConnectionManagerBuilder setConnPoolListener(final ConnPoolListener<HttpRoute> connPoolListener) {
-        this.connPoolListener = connPoolListener;
+    public final PoolingHttpClientConnectionManagerBuilder setConnPoolPolicy(final PoolReusePolicy poolReusePolicy) {
+        this.poolReusePolicy = poolReusePolicy;
         return this;
     }
 
@@ -209,8 +198,7 @@ public class PoolingHttpClientConnectionManagerBuilder {
                 connectionFactory,
                 schemePortResolver,
                 dnsResolver,
-                connPoolPolicy,
-                connPoolListener,
+                poolReusePolicy,
                 timeToLive != null ? timeToLive : TimeValue.NEG_ONE_MILLISECONDS);
         poolingmgr.setValidateAfterInactivity(this.validateAfterInactivity);
         if (defaultSocketConfig != null) {

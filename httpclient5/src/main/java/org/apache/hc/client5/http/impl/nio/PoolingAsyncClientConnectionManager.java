@@ -58,9 +58,8 @@ import org.apache.hc.core5.http2.nio.command.PingCommand;
 import org.apache.hc.core5.http2.nio.support.BasicPingHandler;
 import org.apache.hc.core5.io.ShutdownType;
 import org.apache.hc.core5.pool.ConnPoolControl;
-import org.apache.hc.core5.pool.ConnPoolListener;
-import org.apache.hc.core5.pool.ConnPoolPolicy;
 import org.apache.hc.core5.pool.PoolEntry;
+import org.apache.hc.core5.pool.PoolReusePolicy;
 import org.apache.hc.core5.pool.PoolStats;
 import org.apache.hc.core5.pool.StrictConnPool;
 import org.apache.hc.core5.reactor.ConnectionInitiator;
@@ -68,6 +67,7 @@ import org.apache.hc.core5.util.Args;
 import org.apache.hc.core5.util.Asserts;
 import org.apache.hc.core5.util.Identifiable;
 import org.apache.hc.core5.util.TimeValue;
+import org.apache.hc.core5.util.Timeout;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -105,10 +105,9 @@ public class PoolingAsyncClientConnectionManager implements AsyncClientConnectio
             final SchemePortResolver schemePortResolver,
             final DnsResolver dnsResolver,
             final TimeValue timeToLive,
-            final ConnPoolPolicy policy,
-            final ConnPoolListener<HttpRoute> connPoolListener) {
+            final PoolReusePolicy poolReusePolicy) {
         this.connectionOperator = new AsyncClientConnectionOperator(schemePortResolver, dnsResolver, tlsStrategyLookup);
-        this.pool = new StrictConnPool<>(20, 50, timeToLive, policy != null ? policy : ConnPoolPolicy.LIFO, connPoolListener);
+        this.pool = new StrictConnPool<>(20, 50, timeToLive, poolReusePolicy != null ? poolReusePolicy : PoolReusePolicy.LIFO, null);
         this.closed = new AtomicBoolean(false);
     }
 
@@ -142,7 +141,7 @@ public class PoolingAsyncClientConnectionManager implements AsyncClientConnectio
     public Future<AsyncConnectionEndpoint> lease(
             final HttpRoute route,
             final Object state,
-            final TimeValue timeout,
+            final Timeout timeout,
             final FutureCallback<AsyncConnectionEndpoint> callback) {
         if (log.isDebugEnabled()) {
             log.debug("Connection request: " + ConnPoolSupport.formatStats(null, route, state, pool));
@@ -381,7 +380,7 @@ public class PoolingAsyncClientConnectionManager implements AsyncClientConnectio
 
     /**
      * Defines period of inactivity in milliseconds after which persistent connections must
-     * be re-validated prior to being {@link #lease(HttpRoute, Object, TimeValue,
+     * be re-validated prior to being {@link #lease(HttpRoute, Object, Timeout,
      * FutureCallback)} leased} to the consumer. Non-positive value passed
      * to this method disables connection validation. This check helps detect connections
      * that have become stale (half-closed) while kept inactive in the pool.
@@ -399,7 +398,7 @@ public class PoolingAsyncClientConnectionManager implements AsyncClientConnectio
 
         InternalConnectionEndpoint(final PoolEntry<HttpRoute, ManagedAsyncClientConnection> poolEntry) {
             this.poolEntryRef = new AtomicReference<>(poolEntry);
-            this.id = "ep-" + Long.toHexString(COUNT.incrementAndGet());
+            this.id = String.format("ep-%08X", COUNT.getAndIncrement());
         }
 
         @Override
