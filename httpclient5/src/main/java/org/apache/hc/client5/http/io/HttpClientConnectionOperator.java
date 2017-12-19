@@ -30,7 +30,6 @@ package org.apache.hc.client5.http.io;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
-import org.apache.hc.core5.annotation.Internal;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.config.SocketConfig;
 import org.apache.hc.core5.http.protocol.HttpContext;
@@ -45,7 +44,6 @@ import org.apache.hc.core5.util.TimeValue;
  *
  * @since 4.4
  */
-@Internal
 public interface HttpClientConnectionOperator {
 
     void connect(

@@ -29,11 +29,11 @@ package org.apache.hc.client5.testing.async;
 import java.util.concurrent.Future;
 
 import org.apache.hc.client5.http.HttpRoute;
-import org.apache.hc.client5.http.UserTokenHandler;
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequest;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 import org.apache.hc.client5.http.impl.async.CloseableHttpAsyncClient;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
+import org.apache.hc.client5.http.protocol.UserTokenHandler;
 import org.apache.hc.core5.function.Supplier;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.EndpointDetails;
@@ -97,7 +97,7 @@ public class TestAsyncStatefulConnManagement extends IntegrationTestBase {
             worker.start();
         }
         for (final HttpWorker worker : workers) {
-            worker.join(LONG_TIMEOUT.toMillis());
+            worker.join(10000);
         }
         for (final HttpWorker worker : workers) {
             final Exception ex = worker.getException();

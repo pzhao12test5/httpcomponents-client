@@ -32,16 +32,16 @@ import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.hc.client5.http.CircularRedirectException;
-import org.apache.hc.client5.http.ClientProtocolException;
-import org.apache.hc.client5.http.RedirectException;
-import org.apache.hc.client5.http.classic.methods.HttpGet;
-import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.cookie.BasicCookieStore;
 import org.apache.hc.client5.http.cookie.CookieStore;
 import org.apache.hc.client5.http.impl.cookie.BasicClientCookie;
+import org.apache.hc.client5.http.protocol.CircularRedirectException;
+import org.apache.hc.client5.http.protocol.ClientProtocolException;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
+import org.apache.hc.client5.http.protocol.RedirectException;
+import org.apache.hc.client5.http.sync.methods.HttpGet;
+import org.apache.hc.client5.http.sync.methods.HttpPost;
 import org.apache.hc.client5.http.utils.URIUtils;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
@@ -53,6 +53,7 @@ import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.http.ProtocolException;
 import org.apache.hc.core5.http.io.HttpRequestHandler;
+import org.apache.hc.core5.http.io.UriHttpRequestHandlerMapper;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.http.message.BasicHeader;
@@ -119,20 +120,15 @@ public class TestRedirects extends LocalServerTestBase {
                 final ClassicHttpRequest request,
                 final ClassicHttpResponse response,
                 final HttpContext context) throws HttpException, IOException {
-            try {
-                final URI requestURI = request.getUri();
-                final String path = requestURI.getPath();
-                if (path.startsWith("/circular-oldlocation")) {
-                    response.setCode(HttpStatus.SC_MOVED_TEMPORARILY);
-                    response.addHeader(new BasicHeader("Location", "/circular-location2"));
-                } else if (path.startsWith("/circular-location2")) {
-                    response.setCode(HttpStatus.SC_MOVED_TEMPORARILY);
-                    response.addHeader(new BasicHeader("Location", "/circular-oldlocation"));
-                } else {
-                    response.setCode(HttpStatus.SC_NOT_FOUND);
-                }
-            } catch (final URISyntaxException ex) {
-                throw new ProtocolException(ex.getMessage(), ex);
+            final String uri = request.getRequestUri();
+            if (uri.startsWith("/circular-oldlocation")) {
+                response.setCode(HttpStatus.SC_MOVED_TEMPORARILY);
+                response.addHeader(new BasicHeader("Location", "/circular-location2"));
+            } else if (uri.startsWith("/circular-location2")) {
+                response.setCode(HttpStatus.SC_MOVED_TEMPORARILY);
+                response.addHeader(new BasicHeader("Location", "/circular-oldlocation"));
+            } else {
+                response.setCode(HttpStatus.SC_NOT_FOUND);
             }
         }
     }
@@ -148,21 +144,16 @@ public class TestRedirects extends LocalServerTestBase {
                 final ClassicHttpRequest request,
                 final ClassicHttpResponse response,
                 final HttpContext context) throws HttpException, IOException {
-            try {
-                final URI requestURI = request.getUri();
-                final String path = requestURI.getPath();
-                if (path.equals("/oldlocation/")) {
-                    response.setCode(HttpStatus.SC_MOVED_TEMPORARILY);
-                    response.addHeader(new BasicHeader("Location", "/relativelocation/"));
-                } else if (path.equals("/relativelocation/")) {
-                    response.setCode(HttpStatus.SC_OK);
-                    final StringEntity entity = new StringEntity("Successful redirect");
-                    response.setEntity(entity);
-                } else {
-                    response.setCode(HttpStatus.SC_NOT_FOUND);
-                }
-            } catch (final URISyntaxException ex) {
-                throw new ProtocolException(ex.getMessage(), ex);
+            final String uri = request.getRequestUri();
+            if (uri.equals("/oldlocation/")) {
+                response.setCode(HttpStatus.SC_MOVED_TEMPORARILY);
+                response.addHeader(new BasicHeader("Location", "/relativelocation/"));
+            } else if (uri.equals("/relativelocation/")) {
+                response.setCode(HttpStatus.SC_OK);
+                final StringEntity entity = new StringEntity("Successful redirect");
+                response.setEntity(entity);
+            } else {
+                response.setCode(HttpStatus.SC_NOT_FOUND);
             }
         }
     }
@@ -178,21 +169,16 @@ public class TestRedirects extends LocalServerTestBase {
                 final ClassicHttpRequest request,
                 final ClassicHttpResponse response,
                 final HttpContext context) throws HttpException, IOException {
-            try {
-                final URI requestURI = request.getUri();
-                final String path = requestURI.getPath();
-                if (path.equals("/test/oldlocation")) {
-                    response.setCode(HttpStatus.SC_MOVED_TEMPORARILY);
-                    response.addHeader(new BasicHeader("Location", "relativelocation"));
-                } else if (path.equals("/test/relativelocation")) {
-                    response.setCode(HttpStatus.SC_OK);
-                    final StringEntity entity = new StringEntity("Successful redirect");
-                    response.setEntity(entity);
-                } else {
-                    response.setCode(HttpStatus.SC_NOT_FOUND);
-                }
-            } catch (final URISyntaxException ex) {
-                throw new ProtocolException(ex.getMessage(), ex);
+            final String uri = request.getRequestUri();
+            if (uri.equals("/test/oldlocation")) {
+                response.setCode(HttpStatus.SC_MOVED_TEMPORARILY);
+                response.addHeader(new BasicHeader("Location", "relativelocation"));
+            } else if (uri.equals("/test/relativelocation")) {
+                response.setCode(HttpStatus.SC_OK);
+                final StringEntity entity = new StringEntity("Successful redirect");
+                response.setEntity(entity);
+            } else {
+                response.setCode(HttpStatus.SC_NOT_FOUND);
             }
         }
     }
@@ -208,36 +194,24 @@ public class TestRedirects extends LocalServerTestBase {
                 final ClassicHttpRequest request,
                 final ClassicHttpResponse response,
                 final HttpContext context) throws HttpException, IOException {
-            try {
-                final URI requestURI = request.getUri();
-                final String path = requestURI.getPath();
-                if (path.equals("/rome")) {
-                    response.setCode(HttpStatus.SC_OK);
-                    final StringEntity entity = new StringEntity("Successful redirect");
-                    response.setEntity(entity);
-                } else {
-                    response.setCode(HttpStatus.SC_MOVED_TEMPORARILY);
-                    response.addHeader(new BasicHeader("Location", "/rome"));
-                }
-            } catch (final URISyntaxException ex) {
-                throw new ProtocolException(ex.getMessage(), ex);
+            final String uri = request.getRequestUri();
+            if (uri.equals("/rome")) {
+                response.setCode(HttpStatus.SC_OK);
+                final StringEntity entity = new StringEntity("Successful redirect");
+                response.setEntity(entity);
+            } else {
+                response.setCode(HttpStatus.SC_MOVED_TEMPORARILY);
+                response.addHeader(new BasicHeader("Location", "/rome"));
             }
         }
     }
 
-    interface UriTransformation {
+    private static class BogusRedirectService implements HttpRequestHandler {
+        private final String url;
 
-        String rewrite(URI requestUri);
-
-    }
-
-    private static class TransformingRedirectService implements HttpRequestHandler {
-
-        private final UriTransformation uriTransformation;
-
-        public TransformingRedirectService(final UriTransformation uriTransformation) {
+        public BogusRedirectService(final String redirectUrl) {
             super();
-            this.uriTransformation = uriTransformation;
+            this.url = redirectUrl;
         }
 
         @Override
@@ -245,28 +219,24 @@ public class TestRedirects extends LocalServerTestBase {
                 final ClassicHttpRequest request,
                 final ClassicHttpResponse response,
                 final HttpContext context) throws HttpException, IOException {
-            try {
-                final URI requestURI = request.getUri();
-                final String path = requestURI.getPath();
-                if (path.equals("/oldlocation/")) {
-                    response.setCode(HttpStatus.SC_MOVED_TEMPORARILY);
-                    response.addHeader(new BasicHeader("Location", uriTransformation.rewrite(requestURI)));
-                } else if (path.equals("/relativelocation/")) {
-                    response.setCode(HttpStatus.SC_OK);
-                    final StringEntity entity = new StringEntity("Successful redirect");
-                    response.setEntity(entity);
-                } else {
-                    response.setCode(HttpStatus.SC_NOT_FOUND);
-                }
-            } catch (final URISyntaxException ex) {
-                throw new ProtocolException(ex.getMessage(), ex);
+            final String uri = request.getRequestUri();
+            if (uri.equals("/oldlocation/")) {
+                response.setCode(HttpStatus.SC_MOVED_TEMPORARILY);
+                response.addHeader(new BasicHeader("Location", url));
+            } else if (uri.equals("/relativelocation/")) {
+                response.setCode(HttpStatus.SC_OK);
+                final StringEntity entity = new StringEntity("Successful redirect");
+                response.setEntity(entity);
+            } else {
+                response.setCode(HttpStatus.SC_NOT_FOUND);
             }
         }
     }
 
     @Test
     public void testBasicRedirect300() throws Exception {
-        this.server.registerHandler("*", new BasicRedirectService(HttpStatus.SC_MULTIPLE_CHOICES));
+        this.serverBootstrap.registerHandler("*",
+                new BasicRedirectService(HttpStatus.SC_MULTIPLE_CHOICES));
 
         final HttpHost target = start();
 
@@ -288,7 +258,8 @@ public class TestRedirects extends LocalServerTestBase {
 
     @Test
     public void testBasicRedirect301() throws Exception {
-        this.server.registerHandler("*", new BasicRedirectService(HttpStatus.SC_MOVED_PERMANENTLY));
+        this.serverBootstrap.registerHandler("*",
+                new BasicRedirectService(HttpStatus.SC_MOVED_PERMANENTLY));
 
         final HttpHost target = start();
 
@@ -314,7 +285,8 @@ public class TestRedirects extends LocalServerTestBase {
 
     @Test
     public void testBasicRedirect302() throws Exception {
-        this.server.registerHandler("*", new BasicRedirectService(HttpStatus.SC_MOVED_TEMPORARILY));
+        this.serverBootstrap.registerHandler("*",
+                new BasicRedirectService(HttpStatus.SC_MOVED_TEMPORARILY));
 
         final HttpHost target = start();
 
@@ -333,7 +305,7 @@ public class TestRedirects extends LocalServerTestBase {
 
     @Test
     public void testBasicRedirect302NoLocation() throws Exception {
-        this.server.registerHandler("*", new HttpRequestHandler() {
+        this.serverBootstrap.registerHandler("*", new HttpRequestHandler() {
 
             @Override
             public void handle(
@@ -362,7 +334,8 @@ public class TestRedirects extends LocalServerTestBase {
 
     @Test
     public void testBasicRedirect303() throws Exception {
-        this.server.registerHandler("*", new BasicRedirectService(HttpStatus.SC_SEE_OTHER));
+        this.serverBootstrap.registerHandler("*",
+                new BasicRedirectService(HttpStatus.SC_SEE_OTHER));
 
         final HttpHost target = start();
 
@@ -381,7 +354,8 @@ public class TestRedirects extends LocalServerTestBase {
 
     @Test
     public void testBasicRedirect304() throws Exception {
-        this.server.registerHandler("*", new BasicRedirectService(HttpStatus.SC_NOT_MODIFIED));
+        this.serverBootstrap.registerHandler("*",
+                new BasicRedirectService(HttpStatus.SC_NOT_MODIFIED));
 
         final HttpHost target = start();
 
@@ -400,7 +374,8 @@ public class TestRedirects extends LocalServerTestBase {
 
     @Test
     public void testBasicRedirect305() throws Exception {
-        this.server.registerHandler("*", new BasicRedirectService(HttpStatus.SC_USE_PROXY));
+        this.serverBootstrap.registerHandler("*",
+                new BasicRedirectService(HttpStatus.SC_USE_PROXY));
         final HttpHost target = start();
 
         final HttpClientContext context = HttpClientContext.create();
@@ -418,7 +393,8 @@ public class TestRedirects extends LocalServerTestBase {
 
     @Test
     public void testBasicRedirect307() throws Exception {
-        this.server.registerHandler("*", new BasicRedirectService(HttpStatus.SC_TEMPORARY_REDIRECT));
+        this.serverBootstrap.registerHandler("*",
+                new BasicRedirectService(HttpStatus.SC_TEMPORARY_REDIRECT));
 
         final HttpHost target = start();
 
@@ -437,7 +413,7 @@ public class TestRedirects extends LocalServerTestBase {
 
     @Test(expected=ClientProtocolException.class)
     public void testMaxRedirectCheck() throws Exception {
-        this.server.registerHandler("*", new CircularRedirectService());
+        this.serverBootstrap.registerHandler("*", new CircularRedirectService());
 
         final HttpHost target = start();
 
@@ -458,7 +434,7 @@ public class TestRedirects extends LocalServerTestBase {
 
     @Test(expected=ClientProtocolException.class)
     public void testCircularRedirect() throws Exception {
-        this.server.registerHandler("*", new CircularRedirectService());
+        this.serverBootstrap.registerHandler("*", new CircularRedirectService());
 
         final HttpHost target = start();
 
@@ -478,7 +454,7 @@ public class TestRedirects extends LocalServerTestBase {
 
     @Test
     public void testRepeatRequest() throws Exception {
-        this.server.registerHandler("*", new RomeRedirectService());
+        this.serverBootstrap.registerHandler("*", new RomeRedirectService());
 
         final HttpHost target = start();
 
@@ -501,7 +477,7 @@ public class TestRedirects extends LocalServerTestBase {
 
     @Test
     public void testRepeatRequestRedirect() throws Exception {
-        this.server.registerHandler("*", new RomeRedirectService());
+        this.serverBootstrap.registerHandler("*", new RomeRedirectService());
 
         final HttpHost target = start();
 
@@ -524,7 +500,7 @@ public class TestRedirects extends LocalServerTestBase {
 
     @Test
     public void testDifferentRequestSameRedirect() throws Exception {
-        this.server.registerHandler("*", new RomeRedirectService());
+        this.serverBootstrap.registerHandler("*", new RomeRedirectService());
 
         final HttpHost target = start();
 
@@ -548,7 +524,7 @@ public class TestRedirects extends LocalServerTestBase {
 
     @Test
     public void testPostRedirectSeeOther() throws Exception {
-        this.server.registerHandler("*", new BasicRedirectService(HttpStatus.SC_SEE_OTHER));
+        this.serverBootstrap.registerHandler("*", new BasicRedirectService(HttpStatus.SC_SEE_OTHER));
 
         final HttpHost target = start();
 
@@ -569,7 +545,7 @@ public class TestRedirects extends LocalServerTestBase {
 
     @Test
     public void testRelativeRedirect() throws Exception {
-        this.server.registerHandler("*", new RelativeRedirectService());
+        this.serverBootstrap.registerHandler("*", new RelativeRedirectService());
 
         final HttpHost target = start();
 
@@ -588,7 +564,7 @@ public class TestRedirects extends LocalServerTestBase {
 
     @Test
     public void testRelativeRedirect2() throws Exception {
-        this.server.registerHandler("*", new RelativeRedirectService2());
+        this.serverBootstrap.registerHandler("*", new RelativeRedirectService2());
 
         final HttpHost target = start();
 
@@ -607,14 +583,7 @@ public class TestRedirects extends LocalServerTestBase {
 
     @Test(expected=ClientProtocolException.class)
     public void testRejectBogusRedirectLocation() throws Exception {
-        this.server.registerHandler("*", new TransformingRedirectService(new UriTransformation() {
-
-            @Override
-            public String rewrite(final URI requestUri) {
-                return "xxx://bogus";
-            }
-
-        }));
+        this.serverBootstrap.registerHandler("*", new BogusRedirectService("xxx://bogus"));
 
         final HttpHost target = start();
 
@@ -631,15 +600,14 @@ public class TestRedirects extends LocalServerTestBase {
 
     @Test(expected=ClientProtocolException.class)
     public void testRejectInvalidRedirectLocation() throws Exception {
-        this.server.registerHandler("*", new TransformingRedirectService(new UriTransformation() {
+        final UriHttpRequestHandlerMapper reqistry = new UriHttpRequestHandlerMapper();
+        this.serverBootstrap.setHandlerMapper(reqistry);
 
-            @Override
-            public String rewrite(final URI requestUri) {
-                return "/newlocation/?p=I have spaces";
-            }
-
-        }));
         final HttpHost target = start();
+
+        reqistry.register("*",
+                new BogusRedirectService("http://" + target.toHostString() +
+                        "/newlocation/?p=I have spaces"));
 
         final HttpGet httpget = new HttpGet("/oldlocation/");
 
@@ -653,7 +621,7 @@ public class TestRedirects extends LocalServerTestBase {
 
     @Test
     public void testRedirectWithCookie() throws Exception {
-        this.server.registerHandler("*", new BasicRedirectService());
+        this.serverBootstrap.registerHandler("*", new BasicRedirectService());
 
         final HttpHost target = start();
 
@@ -685,7 +653,7 @@ public class TestRedirects extends LocalServerTestBase {
     public void testDefaultHeadersRedirect() throws Exception {
         this.clientBuilder.setDefaultHeaders(Arrays.asList(new BasicHeader(HttpHeaders.USER_AGENT, "my-test-client")));
 
-        this.server.registerHandler("*", new BasicRedirectService());
+        this.serverBootstrap.registerHandler("*", new BasicRedirectService());
 
         final HttpHost target = start();
 

@@ -87,7 +87,7 @@ public class TestPoolingHttpClientConnectionManager {
     public void setup() throws Exception {
         MockitoAnnotations.initMocks(this);
         mgr = new PoolingHttpClientConnectionManager(
-                new DefaultHttpClientConnectionOperator(socketFactoryRegistry, schemePortResolver, dnsResolver), pool, null);
+                pool, socketFactoryRegistry, schemePortResolver, dnsResolver);
     }
 
     @Test

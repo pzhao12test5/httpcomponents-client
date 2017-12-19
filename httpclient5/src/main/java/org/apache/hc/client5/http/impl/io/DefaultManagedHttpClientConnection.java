@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 
+import org.apache.hc.client5.http.impl.logging.LoggingSocketHolder;
 import org.apache.hc.client5.http.io.ManagedHttpClientConnection;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
@@ -56,10 +57,9 @@ import org.apache.logging.log4j.Logger;
 
 /**
  * Default {@link ManagedHttpClientConnection} implementation.
- *
  * @since 4.3
  */
-final class DefaultManagedHttpClientConnection
+public class DefaultManagedHttpClientConnection
         extends DefaultBHttpClientConnection implements ManagedHttpClientConnection, Identifiable {
 
     private final Logger log = LogManager.getLogger(DefaultManagedHttpClientConnection.class);
