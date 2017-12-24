@@ -25,11 +25,10 @@
  -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <parent>
-    <groupId>org.apache.httpcomponents</groupId>
     <artifactId>project</artifactId>
-    <!-- Version 9: <artifactId>httpcomponents-parent</artifactId> -->
+    <groupId>org.apache.httpcomponents</groupId>
     <version>8</version>
-    <relativePath>../httpcomponents-parent/pom.xml</relativePath>
+    <relativePath>../project/pom.xml</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.apache.httpcomponents.client5</groupId>
@@ -69,8 +68,8 @@
   <properties>
     <maven.compiler.source>1.7</maven.compiler.source>
     <maven.compiler.target>1.7</maven.compiler.target>
-    <httpcore.version>5.0-alpha4</httpcore.version>
-    <log4j.version>2.8.2</log4j.version>
+    <httpcore.version>5.0-alpha3</httpcore.version>
+    <log4j.version>2.8</log4j.version>
     <commons-codec.version>1.10</commons-codec.version>
     <ehcache.version>2.6.11</ehcache.version>
     <memcached.version>2.12.0</memcached.version>

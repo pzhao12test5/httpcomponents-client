@@ -44,15 +44,12 @@ import org.apache.hc.core5.concurrent.Cancellable;
 import org.apache.hc.core5.concurrent.ComplexFuture;
 import org.apache.hc.core5.concurrent.FutureCallback;
 import org.apache.hc.core5.function.Callback;
-import org.apache.hc.core5.http.EntityDetails;
-import org.apache.hc.core5.http.HttpException;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.nio.AsyncClientEndpoint;
 import org.apache.hc.core5.http.nio.AsyncClientExchangeHandler;
 import org.apache.hc.core5.http.nio.AsyncRequestProducer;
 import org.apache.hc.core5.http.nio.AsyncResponseConsumer;
-import org.apache.hc.core5.http.nio.RequestChannel;
 import org.apache.hc.core5.http.nio.command.ShutdownCommand;
 import org.apache.hc.core5.http.protocol.HttpContext;
 import org.apache.hc.core5.http2.HttpVersionPolicy;
@@ -60,11 +57,11 @@ import org.apache.hc.core5.io.ShutdownType;
 import org.apache.hc.core5.reactor.DefaultConnectingIOReactor;
 import org.apache.hc.core5.reactor.IOEventHandlerFactory;
 import org.apache.hc.core5.reactor.IOReactorConfig;
+import org.apache.hc.core5.reactor.IOReactorException;
 import org.apache.hc.core5.reactor.IOSession;
 import org.apache.hc.core5.util.Args;
 import org.apache.hc.core5.util.Asserts;
 import org.apache.hc.core5.util.TimeValue;
-import org.apache.hc.core5.util.Timeout;
 
 public class MinimalHttpAsyncClient extends AbstractHttpAsyncClientBase {
 
@@ -78,13 +75,11 @@ public class MinimalHttpAsyncClient extends AbstractHttpAsyncClientBase {
             final IOReactorConfig reactorConfig,
             final ThreadFactory threadFactory,
             final ThreadFactory workerThreadFactory,
-            final AsyncClientConnectionManager connmgr) {
+            final AsyncClientConnectionManager connmgr) throws IOReactorException {
         super(new DefaultConnectingIOReactor(
                 eventHandlerFactory,
                 reactorConfig,
                 workerThreadFactory,
-                null,
-                null,
                 new Callback<IOSession>() {
 
                     @Override
@@ -101,7 +96,7 @@ public class MinimalHttpAsyncClient extends AbstractHttpAsyncClientBase {
 
     private Future<AsyncConnectionEndpoint> leaseEndpoint(
             final HttpHost host,
-            final Timeout connectTimeout,
+            final TimeValue connectTimeout,
             final HttpClientContext clientContext,
             final FutureCallback<AsyncConnectionEndpoint> callback) {
         final ComplexFuture<AsyncConnectionEndpoint> resultFuture = new ComplexFuture<>(callback);
@@ -202,6 +197,8 @@ public class MinimalHttpAsyncClient extends AbstractHttpAsyncClientBase {
             final HttpContext context,
             final FutureCallback<T> callback) {
         ensureRunning();
+        final HttpRequest request = requestProducer.produceRequest();
+        final HttpHost target = new HttpHost(request.getAuthority(), request.getScheme());
         final HttpClientContext clientContext = HttpClientContext.adapt(context);
         RequestConfig requestConfig = null;
         if (requestProducer instanceof Configurable) {
@@ -213,73 +210,58 @@ public class MinimalHttpAsyncClient extends AbstractHttpAsyncClientBase {
             requestConfig = clientContext.getRequestConfig();
         }
         final ComplexFuture<T> resultFuture = new ComplexFuture<>(callback);
-        try {
-            final Timeout connectTimeout = requestConfig.getConnectTimeout();
-            requestProducer.sendRequest(new RequestChannel() {
+        final Future<AsyncConnectionEndpoint> leaseFuture = leaseEndpoint(target, requestConfig.getConnectTimeout(), clientContext,
+                new FutureCallback<AsyncConnectionEndpoint>() {
 
-                @Override
-                public void sendRequest(
-                        final HttpRequest request,
-                        final EntityDetails entityDetails) throws HttpException, IOException {
-                    final HttpHost target = new HttpHost(request.getAuthority(), request.getScheme());
-                    final Future<AsyncConnectionEndpoint> leaseFuture = leaseEndpoint(target, connectTimeout, clientContext,
-                            new FutureCallback<AsyncConnectionEndpoint>() {
+                    @Override
+                    public void completed(final AsyncConnectionEndpoint connectionEndpoint) {
+                        final InternalAsyncClientEndpoint endpoint = new InternalAsyncClientEndpoint(connectionEndpoint);
+                        endpoint.execute(requestProducer, responseConsumer, clientContext, new FutureCallback<T>() {
 
-                                @Override
-                                public void completed(final AsyncConnectionEndpoint connectionEndpoint) {
-                                    final InternalAsyncClientEndpoint endpoint = new InternalAsyncClientEndpoint(connectionEndpoint);
-                                    endpoint.execute(requestProducer, responseConsumer, clientContext, new FutureCallback<T>() {
+                            @Override
+                            public void completed(final T result) {
+                                endpoint.releaseAndReuse();
+                                resultFuture.completed(result);
+                            }
 
-                                        @Override
-                                        public void completed(final T result) {
-                                            endpoint.releaseAndReuse();
-                                            resultFuture.completed(result);
-                                        }
+                            @Override
+                            public void failed(final Exception ex) {
+                                endpoint.releaseAndDiscard();
+                                resultFuture.failed(ex);
+                            }
 
-                                        @Override
-                                        public void failed(final Exception ex) {
-                                            endpoint.releaseAndDiscard();
-                                            resultFuture.failed(ex);
-                                        }
+                            @Override
+                            public void cancelled() {
+                                endpoint.releaseAndDiscard();
+                                resultFuture.cancel();
+                            }
 
-                                        @Override
-                                        public void cancelled() {
-                                            endpoint.releaseAndDiscard();
-                                            resultFuture.cancel();
-                                        }
+                        });
+                        resultFuture.setDependency(new Cancellable() {
 
-                                    });
-                                    resultFuture.setDependency(new Cancellable() {
+                            @Override
+                            public boolean cancel() {
+                                final boolean active = !endpoint.isReleased();
+                                endpoint.releaseAndDiscard();
+                                return active;
+                            }
 
-                                        @Override
-                                        public boolean cancel() {
-                                            final boolean active = !endpoint.isReleased();
-                                            endpoint.releaseAndDiscard();
-                                            return active;
-                                        }
+                        });
 
-                                    });
+                    }
 
-                                }
+                    @Override
+                    public void failed(final Exception ex) {
+                        resultFuture.failed(ex);
+                    }
 
-                                @Override
-                                public void failed(final Exception ex) {
-                                    resultFuture.failed(ex);
-                                }
+                    @Override
+                    public void cancelled() {
+                        resultFuture.cancel();
+                    }
 
-                                @Override
-                                public void cancelled() {
-                                    resultFuture.cancel();
-                                }
-
-                            });
-                    resultFuture.setDependency(leaseFuture);
-                }
-            });
-
-        } catch (final HttpException | IOException ex) {
-            resultFuture.failed(ex);
-        }
+                });
+        resultFuture.setDependency(leaseFuture);
         return resultFuture;
     }
 

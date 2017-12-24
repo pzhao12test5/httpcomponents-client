@@ -43,6 +43,7 @@ import org.apache.hc.core5.http2.protocol.H2RequestContent;
 import org.apache.hc.core5.http2.protocol.H2RequestTargetHost;
 import org.apache.hc.core5.reactor.IOEventHandlerFactory;
 import org.apache.hc.core5.reactor.IOReactorConfig;
+import org.apache.hc.core5.reactor.IOReactorException;
 import org.apache.hc.core5.util.VersionInfo;
 
 /**
@@ -94,14 +95,18 @@ public class HttpAsyncClients {
             final HttpVersionPolicy versionPolicy,
             final IOReactorConfig ioReactorConfig,
             final AsyncClientConnectionManager connmgr) {
-        return new MinimalHttpAsyncClient(
-                eventHandlerFactory,
-                pushConsumerRegistry,
-                versionPolicy,
-                ioReactorConfig,
-                new DefaultThreadFactory("httpclient-main", true),
-                new DefaultThreadFactory("httpclient-dispatch", true),
-                connmgr);
+        try {
+            return new MinimalHttpAsyncClient(
+                    eventHandlerFactory,
+                    pushConsumerRegistry,
+                    versionPolicy,
+                    ioReactorConfig,
+                    new DefaultThreadFactory("httpclient-main", true),
+                    new DefaultThreadFactory("httpclient-dispatch", true),
+                    connmgr);
+        } catch (final IOReactorException ex) {
+            throw new IllegalStateException(ex.getMessage(), ex);
+        }
     }
 
     /**

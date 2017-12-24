@@ -47,19 +47,19 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import org.apache.hc.client5.http.ClientProtocolException;
 import org.apache.hc.client5.http.HttpRoute;
 import org.apache.hc.client5.http.cache.CacheResponseStatus;
 import org.apache.hc.client5.http.cache.HttpCacheContext;
 import org.apache.hc.client5.http.cache.HttpCacheEntry;
 import org.apache.hc.client5.http.cache.HttpCacheStorage;
-import org.apache.hc.client5.http.classic.ExecChain;
-import org.apache.hc.client5.http.classic.ExecChainHandler;
-import org.apache.hc.client5.http.classic.ExecRuntime;
-import org.apache.hc.client5.http.classic.methods.HttpGet;
-import org.apache.hc.client5.http.classic.methods.HttpOptions;
 import org.apache.hc.client5.http.impl.ExecSupport;
+import org.apache.hc.client5.http.protocol.ClientProtocolException;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
+import org.apache.hc.client5.http.sync.ExecChain;
+import org.apache.hc.client5.http.sync.ExecChainHandler;
+import org.apache.hc.client5.http.sync.ExecRuntime;
+import org.apache.hc.client5.http.sync.methods.HttpGet;
+import org.apache.hc.client5.http.sync.methods.HttpOptions;
 import org.apache.hc.client5.http.utils.DateUtils;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
@@ -70,7 +70,7 @@ import org.apache.hc.core5.http.HttpRequest;
 import org.apache.hc.core5.http.HttpResponse;
 import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.http.HttpVersion;
-import org.apache.hc.core5.http.io.HttpClientResponseHandler;
+import org.apache.hc.core5.http.io.ResponseHandler;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.InputStreamEntity;
 import org.apache.hc.core5.http.message.BasicClassicHttpRequest;
@@ -101,7 +101,7 @@ public abstract class TestCachingExecChain {
     protected ResponseCachingPolicy mockResponsePolicy;
     protected HttpCacheEntry mockCacheEntry;
     protected CachedHttpResponseGenerator mockResponseGenerator;
-    private HttpClientResponseHandler<Object> mockHandler;
+    private ResponseHandler<Object> mockHandler;
     private ClassicHttpRequest mockUriRequest;
     private ClassicHttpResponse mockCachedResponse;
     protected ConditionalRequestBuilder mockConditionalRequestBuilder;
@@ -127,7 +127,7 @@ public abstract class TestCachingExecChain {
         mockCache = createNiceMock(HttpCache.class);
         mockSuitabilityChecker = createNiceMock(CachedResponseSuitabilityChecker.class);
         mockResponsePolicy = createNiceMock(ResponseCachingPolicy.class);
-        mockHandler = createNiceMock(HttpClientResponseHandler.class);
+        mockHandler = createNiceMock(ResponseHandler.class);
         mockUriRequest = createNiceMock(ClassicHttpRequest.class);
         mockCacheEntry = createNiceMock(HttpCacheEntry.class);
         mockResponseGenerator = createNiceMock(CachedHttpResponseGenerator.class);
@@ -310,6 +310,7 @@ public abstract class TestCachingExecChain {
 
     @Test
     public void testSuitableCacheEntryDoesNotCauseBackendRequest() throws Exception {
+        cacheInvalidatorWasCalled();
         requestPolicyAllowsCaching(true);
         getCacheEntryReturns(mockCacheEntry);
         cacheEntrySuitable(true);
@@ -350,6 +351,7 @@ public abstract class TestCachingExecChain {
     public void testResponseIsGeneratedWhenCacheEntryIsUsable() throws Exception {
 
         requestIsFatallyNonCompliant(null);
+        cacheInvalidatorWasCalled();
         requestPolicyAllowsCaching(true);
         cacheEntrySuitable(true);
         getCacheEntryReturns(mockCacheEntry);
@@ -1311,6 +1313,7 @@ public abstract class TestCachingExecChain {
             "must-revalidate") });
 
         requestIsFatallyNonCompliant(null);
+        cacheInvalidatorWasCalled();
         requestPolicyAllowsCaching(true);
         getCacheEntryReturns(entry);
         cacheEntrySuitable(false);
@@ -1328,6 +1331,7 @@ public abstract class TestCachingExecChain {
         request.setHeader("Cache-Control", "only-if-cached");
 
         requestIsFatallyNonCompliant(null);
+        cacheInvalidatorWasCalled();
         requestPolicyAllowsCaching(true);
         getCacheEntryReturns(entry);
         cacheEntrySuitable(true);
@@ -1672,11 +1676,6 @@ public abstract class TestCachingExecChain {
         expect(
             mockResponseGenerator.generateResponse((ClassicHttpRequest) anyObject(), (HttpCacheEntry) anyObject()))
             .andReturn(mockCachedResponse);
-    }
-
-    protected void doesNotFlushCache() throws IOException {
-        mockCache.flushInvalidatedCacheEntriesFor(isA(HttpHost.class), isA(HttpRequest.class));
-        EasyMock.expectLastCall().andThrow(new AssertionError("flushInvalidatedCacheEntriesFor should not have been called")).anyTimes();
     }
 
 }
