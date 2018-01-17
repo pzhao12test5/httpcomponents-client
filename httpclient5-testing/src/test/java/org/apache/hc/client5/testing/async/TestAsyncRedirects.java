@@ -38,8 +38,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
-import org.apache.hc.client5.http.CircularRedirectException;
-import org.apache.hc.client5.http.RedirectException;
 import org.apache.hc.client5.http.async.methods.SimpleHttpRequest;
 import org.apache.hc.client5.http.async.methods.SimpleHttpResponse;
 import org.apache.hc.client5.http.async.methods.SimpleRequestProducer;
@@ -48,7 +46,9 @@ import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.cookie.BasicCookieStore;
 import org.apache.hc.client5.http.cookie.CookieStore;
 import org.apache.hc.client5.http.impl.cookie.BasicClientCookie;
+import org.apache.hc.client5.http.protocol.CircularRedirectException;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
+import org.apache.hc.client5.http.protocol.RedirectException;
 import org.apache.hc.client5.testing.SSLTestContexts;
 import org.apache.hc.core5.function.Supplier;
 import org.apache.hc.core5.http.ContentType;
@@ -763,8 +763,8 @@ public class TestAsyncRedirects extends IntegrationTestBase {
             });
 
             secondServer.start();
-            final Future<ListenerEndpoint> endpointFuture = secondServer.listen(new InetSocketAddress(0));
-            final ListenerEndpoint endpoint2 = endpointFuture.get();
+            final ListenerEndpoint endpoint2 = secondServer.listen(new InetSocketAddress(0));
+            endpoint2.waitFor();
 
             final InetSocketAddress address2 = (InetSocketAddress) endpoint2.getAddress();
             final HttpHost initialTarget = new HttpHost("localhost", address2.getPort(), scheme.name());

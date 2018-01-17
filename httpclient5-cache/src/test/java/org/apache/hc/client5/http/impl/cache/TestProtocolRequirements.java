@@ -35,10 +35,10 @@ import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.hc.client5.http.ClientProtocolException;
 import org.apache.hc.client5.http.HttpRoute;
 import org.apache.hc.client5.http.cache.HttpCacheEntry;
-import org.apache.hc.client5.http.classic.ExecChain;
+import org.apache.hc.client5.http.protocol.ClientProtocolException;
+import org.apache.hc.client5.http.sync.ExecChain;
 import org.apache.hc.client5.http.utils.DateUtils;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
@@ -2263,6 +2263,8 @@ public class TestProtocolRequirements extends AbstractProtocolTest {
         notModified.setHeader("Date", DateUtils.formatDate(now));
         notModified.setHeader("ETag", "\"etag\"");
 
+        mockCache.flushInvalidatedCacheEntriesFor(EasyMock.eq(host),
+                eqRequest(request));
         EasyMock.expect(
                 mockCache.getCacheEntry(EasyMock.eq(host), eqRequest(request)))
                 .andReturn(entry);
@@ -2306,6 +2308,7 @@ public class TestProtocolRequirements extends AbstractProtocolTest {
         impl = new CachingExec(mockCache, config);
         request = new BasicClassicHttpRequest("GET", "/thing");
 
+        mockCache.flushInvalidatedCacheEntriesFor(EasyMock.eq(host), eqRequest(request));
         EasyMock.expect(mockCache.getCacheEntry(EasyMock.eq(host), eqRequest(request))).andReturn(entry);
 
         replayMocks();
@@ -2352,6 +2355,7 @@ public class TestProtocolRequirements extends AbstractProtocolTest {
         impl = new CachingExec(mockCache, config);
         request = new BasicClassicHttpRequest("GET", "/thing");
 
+        mockCache.flushInvalidatedCacheEntriesFor(EasyMock.eq(host), eqRequest(request));
         EasyMock.expect(mockCache.getCacheEntry(EasyMock.eq(host), eqRequest(request))).andReturn(entry);
         EasyMock.expect(
                 mockExecChain.proceed(
@@ -2560,6 +2564,7 @@ public class TestProtocolRequirements extends AbstractProtocolTest {
         impl = new CachingExec(mockCache, config);
         request = new BasicClassicHttpRequest("GET", "/thing");
 
+        mockCache.flushInvalidatedCacheEntriesFor(EasyMock.eq(host), eqRequest(request));
         EasyMock.expect(mockCache.getCacheEntry(EasyMock.eq(host), eqRequest(request))).andReturn(entry);
 
         replayMocks();
@@ -2621,6 +2626,7 @@ public class TestProtocolRequirements extends AbstractProtocolTest {
 
         final Capture<ClassicHttpRequest> cap = new Capture<>();
 
+        mockCache.flushInvalidatedCacheEntriesFor(EasyMock.eq(host), eqRequest(request));
         mockCache.flushInvalidatedCacheEntriesFor(
                 EasyMock.isA(HttpHost.class),
                 EasyMock.isA(ClassicHttpRequest.class),

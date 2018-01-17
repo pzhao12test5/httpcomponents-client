@@ -45,8 +45,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hc.client5.http.cache.HttpCacheEntry;
-import org.apache.hc.client5.http.classic.ExecChain;
-import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.sync.ExecChain;
+import org.apache.hc.client5.http.sync.methods.HttpGet;
 import org.apache.hc.client5.http.utils.DateUtils;
 import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.ClassicHttpResponse;
@@ -166,6 +166,7 @@ public class TestCachingExec extends TestCachingExecChain {
     @Test
     public void testCacheMissCausesBackendRequest() throws Exception {
         mockImplMethods(CALL_BACKEND);
+        cacheInvalidatorWasCalled();
         requestPolicyAllowsCaching(true);
         getCacheEntryReturns(null);
         getVariantCacheEntriesReturns(new HashMap<String,Variant>());
@@ -187,6 +188,7 @@ public class TestCachingExec extends TestCachingExecChain {
     @Test
     public void testUnsuitableUnvalidatableCacheEntryCausesBackendRequest() throws Exception {
         mockImplMethods(CALL_BACKEND);
+        cacheInvalidatorWasCalled();
         requestPolicyAllowsCaching(true);
         requestIsFatallyNonCompliant(null);
 
@@ -212,6 +214,7 @@ public class TestCachingExec extends TestCachingExecChain {
     @Test
     public void testUnsuitableValidatableCacheEntryCausesRevalidation() throws Exception {
         mockImplMethods(REVALIDATE_CACHE_ENTRY);
+        cacheInvalidatorWasCalled();
         requestPolicyAllowsCaching(true);
         requestIsFatallyNonCompliant(null);
 
@@ -384,26 +387,6 @@ public class TestCachingExec extends TestCachingExecChain {
         impl.callBackend(host, request, scope, mockExecChain);
 
         verifyMocks();
-    }
-
-    @Test
-    public void testDoesNotFlushCachesOnCacheHit() throws Exception {
-        requestPolicyAllowsCaching(true);
-        requestIsFatallyNonCompliant(null);
-
-        getCacheEntryReturns(mockCacheEntry);
-        doesNotFlushCache();
-        cacheEntrySuitable(true);
-        cacheEntryValidatable(true);
-
-        expect(mockResponseGenerator.generateResponse(isA(HttpRequest.class), isA(HttpCacheEntry.class)))
-                .andReturn(mockBackendResponse);
-
-        replayMocks();
-        final HttpResponse result = impl.execute(request, scope, mockExecChain);
-        verifyMocks();
-
-        Assert.assertSame(mockBackendResponse, result);
     }
 
     private IExpectationSetters<ClassicHttpResponse> implExpectsAnyRequestAndReturn(
